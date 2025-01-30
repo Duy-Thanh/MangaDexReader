@@ -89,7 +89,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ? IconButton(
                         icon: Icon(
                           Platform.isIOS
-                              ? CupertinoIcons.clear_circled_solid
+                              ? CupertinoIcons.clear_circled
                               : Icons.clear,
                           color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.grey[400]
@@ -235,6 +235,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                               color: Colors.white,
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
+                                              height: 1.2,
                                             ),
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
@@ -245,26 +246,34 @@ class _SearchScreenState extends State<SearchScreen> {
                                               children: [
                                                 for (final tag
                                                     in manga.tags.take(2))
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            right: 4),
-                                                    child: Container(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.white24,
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(4),
-                                                      ),
-                                                      child: Text(
-                                                        tag,
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 10,
+                                                  Expanded(
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              right: 4),
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white24,
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          _truncateTag(tag),
+                                                          style:
+                                                              const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 10,
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
                                                       ),
                                                     ),
@@ -293,5 +302,11 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  String _truncateTag(String tag) {
+    const maxLength = 12;
+    if (tag.length <= maxLength) return tag;
+    return '${tag.substring(0, maxLength)}...';
   }
 }

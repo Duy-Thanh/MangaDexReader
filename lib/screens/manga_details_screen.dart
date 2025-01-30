@@ -67,98 +67,129 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
             pinned: true,
             stretch: true,
             backgroundColor: Theme.of(context).primaryColor,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                widget.manga.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black87,
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
+            titleSpacing: 0,
+            flexibleSpace: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool isCollapsed =
+                    constraints.maxHeight <= kToolbarHeight + 40;
+
+                return FlexibleSpaceBar(
+                  title: Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCollapsed ? 56 : 32,
                     ),
-                  ],
-                ),
-              ),
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Hero(
-                    tag: 'manga_${widget.manga.id}',
-                    child: widget.manga.coverUrl != null
-                        ? MangaImage(
-                            imageUrl: widget.manga.coverUrl!,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(color: Colors.grey[900]),
-                  ),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black38,
-                          Colors.black87,
+                    child: Text(
+                      widget.manga.title,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: isCollapsed ? 18 : 20,
+                        height: isCollapsed ? 1.2 : 1.3,
+                        shadows: const [
+                          Shadow(
+                            color: Colors.black,
+                            offset: Offset(0, 1),
+                            blurRadius: 3,
+                          ),
                         ],
                       ),
+                      maxLines: isCollapsed ? 1 : 4,
+                      textAlign: TextAlign.center,
+                      overflow: isCollapsed
+                          ? TextOverflow.ellipsis
+                          : TextOverflow.visible,
                     ),
                   ),
-                ],
-              ),
+                  centerTitle: true,
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Hero(
+                        tag: 'manga_${widget.manga.id}',
+                        child: widget.manga.coverUrl != null
+                            ? MangaImage(
+                                imageUrl: widget.manga.coverUrl!,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(color: Colors.grey[900]),
+                      ),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black54,
+                              Colors.black87,
+                              Colors.black,
+                            ],
+                            stops: [0.4, 0.65, 0.8, 1.0],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  collapseMode: CollapseMode.pin,
+                );
+              },
             ),
             actions: [
-              Consumer<BookmarkProvider>(
-                builder: (context, bookmarkProvider, child) {
-                  final isBookmarked =
-                      bookmarkProvider.getBookmark(widget.manga.id) != null;
-                  return Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Consumer<BookmarkProvider>(
+                  builder: (context, bookmarkProvider, child) {
+                    final isBookmarked =
+                        bookmarkProvider.getBookmark(widget.manga.id) != null;
+                    return Material(
                       color: Colors.black26,
                       borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isBookmarked
-                            ? (Platform.isIOS
-                                ? CupertinoIcons.bookmark_fill
-                                : Icons.bookmark)
-                            : (Platform.isIOS
-                                ? CupertinoIcons.bookmark
-                                : Icons.bookmark_border),
-                        color: Colors.white,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () {
+                          if (isBookmarked) {
+                            bookmarkProvider.removeBookmark(widget.manga.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Removed from bookmarks')),
+                            );
+                          } else {
+                            bookmarkProvider.addBookmark(
+                              Bookmark(
+                                mangaId: widget.manga.id,
+                                title: widget.manga.title,
+                                coverUrl: widget.manga.coverUrl,
+                                timestamp: DateTime.now(),
+                                tags: widget.manga.tags,
+                                status: widget.manga.status,
+                                description: widget.manga.description,
+                              ),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Added to bookmarks')),
+                            );
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            isBookmarked
+                                ? (Platform.isIOS
+                                    ? CupertinoIcons.bookmark_fill
+                                    : Icons.bookmark)
+                                : (Platform.isIOS
+                                    ? CupertinoIcons.bookmark
+                                    : Icons.bookmark_border),
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                      onPressed: () {
-                        if (isBookmarked) {
-                          bookmarkProvider.removeBookmark(widget.manga.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Removed from bookmarks')),
-                          );
-                        } else {
-                          bookmarkProvider.addBookmark(
-                            Bookmark(
-                              mangaId: widget.manga.id,
-                              title: widget.manga.title,
-                              coverUrl: widget.manga.coverUrl,
-                              timestamp: DateTime.now(),
-                              tags: widget.manga.tags,
-                              status: widget.manga.status,
-                              description: widget.manga.description,
-                            ),
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Added to bookmarks')),
-                          );
-                        }
-                      },
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ],
           ),
