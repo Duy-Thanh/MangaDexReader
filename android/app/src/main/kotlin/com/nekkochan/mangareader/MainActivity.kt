@@ -1,4 +1,4 @@
-package com.example.mangareader
+package com.nekkochan.mangareader
 
 import io.flutter.embedding.android.FlutterActivity
 import android.os.Bundle
