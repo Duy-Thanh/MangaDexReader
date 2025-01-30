@@ -2,21 +2,26 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/settings.dart';
 import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
+import '../main.dart';
 
 class SettingsProvider with ChangeNotifier {
   ProxySettings _proxySettings = ProxySettings();
-  String _readingDirection = ReadingDirection.ltr;
-  String _brightnessMode = BrightnessMode.dark;
+  ReadingDirection _readingDirection = ReadingDirection.LTR;
+  BrightnessMode _brightnessMode = BrightnessMode.DARK;
   final SharedPreferences _prefs;
   List<Language> _languages = [];
+
+  SharedPreferences get prefs => _prefs;
 
   SettingsProvider(this._prefs) {
     _loadSettings();
   }
 
   ProxySettings get proxySettings => _proxySettings;
-  String get readingDirection => _readingDirection;
-  String get brightnessMode => _brightnessMode;
+  ReadingDirection get readingDirection => _readingDirection;
+  BrightnessMode get brightnessMode => _brightnessMode;
   List<Language> get languages => _languages;
   List<String> get enabledLanguageCodes =>
       _languages.where((l) => l.enabled).map((l) => l.code).toList();
@@ -29,12 +34,16 @@ class SettingsProvider with ChangeNotifier {
       );
     }
 
-    _readingDirection =
-        _prefs.getString('reading_direction') ?? ReadingDirection.ltr;
-    _brightnessMode =
-        _prefs.getString('brightness_mode') ?? BrightnessMode.dark;
+    _readingDirection = ReadingDirection.values.firstWhere(
+      (e) => e.toString() == _prefs.getString('reading_direction'),
+      orElse: () => ReadingDirection.LTR,
+    );
 
-    // Load language settings
+    _brightnessMode = BrightnessMode.values.firstWhere(
+      (e) => e.toString() == _prefs.getString('brightness_mode'),
+      orElse: () => BrightnessMode.DARK,
+    );
+
     final languageSettings = _prefs.getStringList('enabled_languages');
     _languages = Language.supportedLanguages.map((lang) {
       return lang.copyWith(
@@ -51,26 +60,18 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleReadingDirection() async {
-    _readingDirection = _readingDirection == ReadingDirection.ltr
-        ? ReadingDirection.rtl
-        : ReadingDirection.ltr;
-    await _prefs.setString('reading_direction', _readingDirection);
+  void updateReadingDirection(ReadingDirection direction) {
+    _readingDirection = direction;
+    _prefs.setString('reading_direction', direction.toString());
     notifyListeners();
   }
 
-  Future<void> toggleBrightnessMode() async {
-    switch (_brightnessMode) {
-      case BrightnessMode.dark:
-        _brightnessMode = BrightnessMode.light;
-        break;
-      case BrightnessMode.light:
-        _brightnessMode = BrightnessMode.auto;
-        break;
-      default:
-        _brightnessMode = BrightnessMode.dark;
-    }
-    await _prefs.setString('brightness_mode', _brightnessMode);
+  void updateBrightnessMode(BrightnessMode mode) {
+    _brightnessMode = mode;
+    _prefs.setString('brightness_mode', mode.toString());
+    // Get ThemeProvider and update theme
+    Provider.of<ThemeProvider>(navigatorKey.currentContext!, listen: false)
+        .setThemeMode(mode);
     notifyListeners();
   }
 
@@ -81,13 +82,41 @@ class SettingsProvider with ChangeNotifier {
         enabled: !_languages[index].enabled,
       );
 
-      // Save enabled languages
       await _prefs.setStringList(
         'enabled_languages',
         enabledLanguageCodes,
       );
 
       notifyListeners();
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    await _prefs.setString('reading_direction', _readingDirection.toString());
+    await _prefs.setString('brightness_mode', _brightnessMode.toString());
+    await _prefs.setStringList(
+      'enabled_languages',
+      enabledLanguageCodes,
+    );
+  }
+
+  void toggleReadingDirection() {
+    updateReadingDirection(_readingDirection == ReadingDirection.LTR
+        ? ReadingDirection.RTL
+        : ReadingDirection.LTR);
+  }
+
+  void toggleBrightnessMode() {
+    switch (_brightnessMode) {
+      case BrightnessMode.DARK:
+        updateBrightnessMode(BrightnessMode.LIGHT);
+        break;
+      case BrightnessMode.LIGHT:
+        updateBrightnessMode(BrightnessMode.SYSTEM);
+        break;
+      case BrightnessMode.SYSTEM:
+        updateBrightnessMode(BrightnessMode.DARK);
+        break;
     }
   }
 }

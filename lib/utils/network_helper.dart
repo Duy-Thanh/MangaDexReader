@@ -1,5 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 
 class NetworkHelper {
   static Future<bool> isInternetAvailable() async {
@@ -30,6 +31,18 @@ class NetworkHelper {
       });
     } catch (e) {
       print('Error checking VPN status: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> testConnection() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.mangadex.org/ping'),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Network test error: $e');
       return false;
     }
   }

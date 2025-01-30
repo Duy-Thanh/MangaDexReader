@@ -15,6 +15,24 @@ class ProxySettings {
     this.password,
   });
 
+  ProxySettings copyWith({
+    bool? useProxy,
+    String? proxyType,
+    String? proxyHost,
+    int? proxyPort,
+    String? username,
+    String? password,
+  }) {
+    return ProxySettings(
+      useProxy: useProxy ?? this.useProxy,
+      proxyType: proxyType ?? this.proxyType,
+      proxyHost: proxyHost ?? this.proxyHost,
+      proxyPort: proxyPort ?? this.proxyPort,
+      username: username ?? this.username,
+      password: password ?? this.password,
+    );
+  }
+
   factory ProxySettings.fromJson(Map<String, dynamic> json) {
     return ProxySettings(
       useProxy: json['useProxy'] ?? false,
@@ -38,15 +56,15 @@ class ProxySettings {
   }
 }
 
-class ReadingDirection {
-  static const ltr = 'ltr';
-  static const rtl = 'rtl';
+enum ReadingDirection {
+  LTR,
+  RTL,
 }
 
-class BrightnessMode {
-  static const auto = 'auto';
-  static const light = 'light';
-  static const dark = 'dark';
+enum BrightnessMode {
+  LIGHT,
+  DARK,
+  SYSTEM,
 }
 
 class Language {
@@ -73,11 +91,16 @@ class Language {
     Language(code: 'vi', name: 'Vietnamese'),
     Language(code: 'ja', name: 'Japanese'),
     Language(code: 'ko', name: 'Korean'),
-    Language(code: 'zh', name: 'Chinese'),
+    Language(code: 'zh', name: 'Chinese (Simplified)'),
     Language(code: 'zh-hk', name: 'Chinese (Traditional)'),
     Language(code: 'fr', name: 'French'),
-    Language(code: 'id', name: 'Indonesian'),
-    Language(code: 'th', name: 'Thai'),
+    Language(code: 'de', name: 'German'),
+    Language(code: 'es', name: 'Spanish'),
+    Language(code: 'it', name: 'Italian'),
     Language(code: 'ru', name: 'Russian'),
+    Language(code: 'pt', name: 'Portuguese'),
+    Language(code: 'pl', name: 'Polish'),
+    Language(code: 'th', name: 'Thai'),
+    Language(code: 'id', name: 'Indonesian'),
   ];
 }

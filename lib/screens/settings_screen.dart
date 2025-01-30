@@ -5,292 +5,305 @@ import '../models/settings.dart';
 import '../utils/network_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
+import '../screens/language_settings_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _hostController;
-  late TextEditingController _portController;
-  late TextEditingController _usernameController;
-  late TextEditingController _passwordController;
-  bool _isVpnActive = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final settings = context.read<SettingsProvider>().proxySettings;
-    _hostController = TextEditingController(text: settings.proxyHost);
-    _portController =
-        TextEditingController(text: settings.proxyPort.toString());
-    _usernameController = TextEditingController(text: settings.username);
-    _passwordController = TextEditingController(text: settings.password);
-    _checkVpnStatus();
-  }
-
-  Future<void> _checkVpnStatus() async {
-    final vpnActive = await NetworkHelper.isVpnActive();
-    if (mounted) {
-      setState(() {
-        _isVpnActive = vpnActive;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        elevation: 0,
       ),
-      body: Consumer<SettingsProvider>(
-        builder: (context, settings, child) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // VPN Status
-                Card(
-                  child: ListTile(
-                    leading: Icon(
-                      _isVpnActive ? Icons.vpn_lock : Icons.vpn_lock_outlined,
-                      color: _isVpnActive ? Colors.green : Colors.red,
-                    ),
-                    title: Text(
-                        'VPN Status: ${_isVpnActive ? 'Active' : 'Inactive'}'),
-                    subtitle: const Text(
-                      'VPN is recommended for accessing MangaDex in some regions',
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: _checkVpnStatus,
-                    ),
+      body: ListView(
+        children: [
+          // Reading Direction
+          _buildSection(
+            title: 'Reading Direction',
+            child: Consumer<SettingsProvider>(
+              builder: (context, settings, _) => Column(
+                children: [
+                  RadioListTile<ReadingDirection>(
+                    title: const Text('Left to Right'),
+                    secondary: const Icon(Icons.format_textdirection_l_to_r),
+                    value: ReadingDirection.LTR,
+                    groupValue: settings.readingDirection,
+                    onChanged: (value) =>
+                        settings.updateReadingDirection(value!),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                const SizedBox(height: 24),
-
-                // Language Settings - Move this section up
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Language Settings',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Select languages for manga search and reading',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: settings.languages.map((lang) {
-                            return FilterChip(
-                              selected: lang.enabled,
-                              label: Text(lang.name),
-                              selectedColor: Theme.of(context)
-                                  .primaryColor
-                                  .withOpacity(0.2),
-                              checkmarkColor: Theme.of(context).primaryColor,
-                              onSelected: (selected) {
-                                settings.toggleLanguage(lang.code);
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Proxy Settings
-                const Text(
-                  'Proxy Settings',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SwitchListTile(
-                  title: const Text('Use Proxy'),
-                  value: settings.proxySettings.useProxy,
-                  onChanged: (value) {
-                    settings.updateProxySettings(
-                      ProxySettings(
-                        useProxy: value,
-                        proxyType: settings.proxySettings.proxyType,
-                        proxyHost: _hostController.text,
-                        proxyPort: int.tryParse(_portController.text) ?? 8080,
-                        username: _usernameController.text,
-                        password: _passwordController.text,
-                      ),
-                    );
-                  },
-                ),
-                if (settings.proxySettings.useProxy) ...[
-                  DropdownButtonFormField<String>(
-                    value: settings.proxySettings.proxyType,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'system', child: Text('System Proxy')),
-                      DropdownMenuItem(
-                          value: 'http', child: Text('HTTP Proxy')),
-                      DropdownMenuItem(
-                          value: 'socks5', child: Text('SOCKS5 Proxy')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        settings.updateProxySettings(
-                          ProxySettings(
-                            useProxy: true,
-                            proxyType: value,
-                            proxyHost: _hostController.text,
-                            proxyPort:
-                                int.tryParse(_portController.text) ?? 8080,
-                            username: _usernameController.text,
-                            password: _passwordController.text,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _hostController,
-                    decoration: const InputDecoration(
-                      labelText: 'Proxy Host',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _portController,
-                    decoration: const InputDecoration(
-                      labelText: 'Proxy Port',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _usernameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Username (optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Password (optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                    obscureText: true,
+                  RadioListTile<ReadingDirection>(
+                    title: const Text('Right to Left'),
+                    secondary: const Icon(Icons.format_textdirection_r_to_l),
+                    value: ReadingDirection.RTL,
+                    groupValue: settings.readingDirection,
+                    onChanged: (value) =>
+                        settings.updateReadingDirection(value!),
                   ),
                 ],
+              ),
+            ),
+          ),
 
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          // Theme Mode
+          _buildSection(
+            title: 'Theme',
+            child: Consumer<SettingsProvider>(
+              builder: (context, settings, _) => Column(
+                children: [
+                  RadioListTile<BrightnessMode>(
+                    title: const Text('Light'),
+                    secondary: const Icon(Icons.brightness_7),
+                    value: BrightnessMode.LIGHT,
+                    groupValue: settings.brightnessMode,
+                    onChanged: (value) => settings.updateBrightnessMode(value!),
+                  ),
+                  RadioListTile<BrightnessMode>(
+                    title: const Text('Dark'),
+                    secondary: const Icon(Icons.brightness_4),
+                    value: BrightnessMode.DARK,
+                    groupValue: settings.brightnessMode,
+                    onChanged: (value) => settings.updateBrightnessMode(value!),
+                  ),
+                  RadioListTile<BrightnessMode>(
+                    title: const Text('System'),
+                    secondary: const Icon(Icons.brightness_auto),
+                    value: BrightnessMode.SYSTEM,
+                    groupValue: settings.brightnessMode,
+                    onChanged: (value) => settings.updateBrightnessMode(value!),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Language Settings
+          _buildSection(
+            title: 'Languages',
+            child: ListTile(
+              leading: const Icon(Icons.language),
+              title: const Text('Language Settings'),
+              subtitle: Consumer<SettingsProvider>(
+                builder: (context, settings, _) => Text(
+                  '${settings.enabledLanguageCodes.length} languages enabled',
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LanguageSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Add Proxy Settings section
+          _buildSection(
+            title: 'Proxy Settings',
+            child: Consumer<SettingsProvider>(
+              builder: (context, settings, _) => Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Use Proxy'),
+                    subtitle: const Text('Enable proxy for network requests'),
+                    value: settings.proxySettings.useProxy,
+                    onChanged: (enabled) {
+                      settings.updateProxySettings(
+                        settings.proxySettings.copyWith(useProxy: enabled),
+                      );
+                    },
+                  ),
+                  if (settings.proxySettings.useProxy) ...[
+                    ListTile(
+                      title: const Text('Proxy Type'),
+                      trailing: DropdownButton<String>(
+                        value: settings.proxySettings.proxyType,
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'system', child: Text('System')),
+                          DropdownMenuItem(value: 'http', child: Text('HTTP')),
+                          DropdownMenuItem(
+                              value: 'socks5', child: Text('SOCKS5')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            settings.updateProxySettings(
+                              settings.proxySettings.copyWith(proxyType: value),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Proxy Host',
+                          hintText: 'e.g., proxy.example.com',
+                        ),
+                        onChanged: (value) {
+                          settings.updateProxySettings(
+                            settings.proxySettings.copyWith(proxyHost: value),
+                          );
+                        },
+                        controller: TextEditingController(
+                          text: settings.proxySettings.proxyHost,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Proxy Port',
+                          hintText: 'e.g., 8080',
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          settings.updateProxySettings(
+                            settings.proxySettings.copyWith(
+                              proxyPort: int.tryParse(value) ?? 8080,
+                            ),
+                          );
+                        },
+                        controller: TextEditingController(
+                          text: settings.proxySettings.proxyPort.toString(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // Network Test
+          _buildSection(
+            title: 'Network',
+            child: ListTile(
+              leading: const Icon(Icons.network_check),
+              title: const Text('Test Connection'),
+              subtitle: const Text('Check connection to MangaDex'),
+              onTap: () async {
+                // Show loading indicator
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
                       children: [
-                        const Text(
-                          'Credits & Attribution',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'This app is powered by MangaDex API',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            final Uri url = Uri.parse('https://mangadex.org');
-                            try {
-                              if (!await launchUrl(
-                                url,
-                                mode: LaunchMode.externalApplication,
-                              )) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Could not open MangaDex website'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                          child: const Text('Visit MangaDex'),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'All manga content is provided by volunteer scanlation groups. Please support their work!',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'This is a free, non-commercial, open source app with no ads or paid services.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
+                        SizedBox(width: 16),
+                        Text('Testing connection...'),
                       ],
                     ),
+                    duration: Duration(seconds: 1),
                   ),
-                ),
-              ],
+                );
+
+                try {
+                  final result = await NetworkHelper.testConnection();
+                  if (!context.mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            result ? Icons.check_circle : Icons.error,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 16),
+                          Text(
+                            result
+                                ? 'Connection successful!'
+                                : 'Connection failed',
+                          ),
+                        ],
+                      ),
+                      backgroundColor: result ? Colors.green : Colors.red,
+                    ),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.error, color: Colors.white),
+                          const SizedBox(width: 16),
+                          Expanded(child: Text('Error: $e')),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
             ),
-          );
-        },
+          ),
+
+          // About Section
+          _buildSection(
+            title: 'About',
+            child: ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('Version'),
+              subtitle: const Text('1.0.0'),
+              onTap: () {
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'Manga Reader',
+                  applicationVersion: '1.0.0',
+                  applicationIcon: const Icon(
+                    Icons.book_rounded,
+                    size: 48,
+                    color: Colors.deepPurple,
+                  ),
+                  children: const [
+                    Text('A simple manga reader app built with Flutter.'),
+                    SizedBox(height: 8),
+                    Text('Powered by MangaDex API'),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _hostController.dispose();
-    _portController.dispose();
-    _usernameController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  Widget _buildSection({required String title, required Widget child}) {
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          child,
+        ],
+      ),
+    );
   }
 }

@@ -11,6 +11,22 @@ import '../models/bookmark.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 
+class PreviousChapterIntent extends Intent {
+  const PreviousChapterIntent();
+}
+
+class NextChapterIntent extends Intent {
+  const NextChapterIntent();
+}
+
+class PreviousPageIntent extends Intent {
+  const PreviousPageIntent();
+}
+
+class NextPageIntent extends Intent {
+  const NextPageIntent();
+}
+
 class ChapterReaderScreen extends StatefulWidget {
   final Chapter chapter;
   final String mangaId;
@@ -34,19 +50,38 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   final TransformationController _transformationController =
       TransformationController();
   bool _isZoomed = false;
+  List<String>? _pages;
+
+  final Map<ShortcutActivator, Intent> _shortcuts = {
+    LogicalKeySet(LogicalKeyboardKey.arrowLeft): const PreviousChapterIntent(),
+    LogicalKeySet(LogicalKeyboardKey.arrowRight): const NextChapterIntent(),
+    LogicalKeySet(LogicalKeyboardKey.audioVolumeUp): const PreviousPageIntent(),
+    LogicalKeySet(LogicalKeyboardKey.audioVolumeDown): const NextPageIntent(),
+  };
 
   @override
   void initState() {
     super.initState();
     _pagesFuture = _loadPages();
+    _loadPages().then((pages) {
+      if (mounted) {
+        setState(() {
+          _pages = pages;
+        });
+      }
+    });
   }
 
   Future<List<String>> _loadPages() async {
     try {
-      return await MangaDexService.getChapterPages(widget.chapter.id);
+      final pages = await MangaDexService.getChapterPages(widget.chapter.id);
+      if (pages.isEmpty) {
+        throw Exception('No pages found for this chapter');
+      }
+      return pages;
     } catch (e) {
       print('Error loading pages: $e');
-      rethrow;
+      throw Exception('Failed to load chapter: ${e.toString()}');
     }
   }
 
@@ -58,17 +93,42 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     });
 
     try {
-      // Get the next/prev chapter with its navigation links
-      final chapters = await MangaDexService.getChapters(widget.mangaId);
-      final currentChapterIndex = chapters.indexWhere((c) => c.id == chapterId);
+      // Get all chapters first
+      final chapters = await MangaDexService.getChapters(
+        widget.mangaId,
+        translatedLanguages:
+            context.read<SettingsProvider>().enabledLanguageCodes,
+      );
 
-      if (currentChapterIndex != -1 && mounted) {
-        final nextChapter = chapters[currentChapterIndex];
-        Navigator.pushReplacement(
+      // Sort chapters by number
+      chapters.sort((a, b) {
+        final aNum = double.tryParse(a.chapter ?? '0') ?? 0;
+        final bNum = double.tryParse(b.chapter ?? '0') ?? 0;
+        return aNum.compareTo(bNum);
+      });
+
+      // Find the target chapter
+      final targetChapter = chapters.firstWhere(
+        (c) => c.id == chapterId,
+        orElse: () => throw Exception('Chapter not found'),
+      );
+
+      // Update navigation links
+      final currentIndex = chapters.indexWhere((c) => c.id == chapterId);
+      if (currentIndex != -1) {
+        targetChapter.prevChapterId =
+            currentIndex > 0 ? chapters[currentIndex - 1].id : null;
+        targetChapter.nextChapterId = currentIndex < chapters.length - 1
+            ? chapters[currentIndex + 1].id
+            : null;
+      }
+
+      if (mounted) {
+        await Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => ChapterReaderScreen(
-              chapter: nextChapter,
+              chapter: targetChapter,
               mangaId: widget.mangaId,
             ),
           ),
@@ -78,8 +138,14 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading chapter: $e'),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
           ),
         );
       }
@@ -89,28 +155,6 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
           _isLoadingNewChapter = false;
         });
       }
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              SizedBox(width: 16),
-              Text('Loading chapter...'),
-            ],
-          ),
-          duration: Duration(seconds: 1),
-        ),
-      );
     }
   }
 
@@ -122,220 +166,261 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     }
   }
 
+  Widget _buildLoadingIndicator() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Platform.isIOS
+              ? const CupertinoActivityIndicator()
+              : const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+          const SizedBox(height: 16),
+          const Text(
+            'Loading chapter...',
+            style: TextStyle(color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
-      focusNode: FocusNode(),
-      autofocus: true,
-      onKey: (event) {
-        if (event is RawKeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-            if (widget.chapter.prevChapterId != null) {
-              _navigateToChapter(widget.chapter.prevChapterId);
-            }
-          } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-            if (widget.chapter.nextChapterId != null) {
-              _navigateToChapter(widget.chapter.nextChapterId);
-            }
-          } else if (event.logicalKey == LogicalKeyboardKey.audioVolumeUp) {
-            if (_currentPage > 1) {
-              _pageController.previousPage(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            }
-          } else if (event.logicalKey == LogicalKeyboardKey.audioVolumeDown) {
-            final pages = context.read<SettingsProvider>().readingDirection;
-            if (_currentPage < pages.length) {
-              _pageController.nextPage(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            }
-          }
-        }
-      },
-      child: Scaffold(
-        backgroundColor: context.watch<SettingsProvider>().brightnessMode ==
-                BrightnessMode.dark
-            ? Colors.black
-            : context.watch<SettingsProvider>().brightnessMode ==
-                    BrightnessMode.light
-                ? Colors.white
-                : Theme.of(context).brightness == Brightness.dark
-                    ? Colors.black
-                    : Colors.white,
-        body: GestureDetector(
-          onTap: () {
-            setState(() {
-              _showControls = !_showControls;
-            });
-          },
-          child: Stack(
-            children: [
-              // Main content
-              FutureBuilder<List<String>>(
-                future: _pagesFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Platform.isIOS
-                              ? const CupertinoActivityIndicator()
-                              : const CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
+    return Shortcuts(
+      shortcuts: _shortcuts,
+      child: Actions(
+        actions: {
+          PreviousChapterIntent: CallbackAction<PreviousChapterIntent>(
+            onInvoke: (intent) {
+              if (!_isLoadingNewChapter &&
+                  widget.chapter.prevChapterId != null) {
+                _navigateToChapter(widget.chapter.prevChapterId);
+              }
+              return null;
+            },
+          ),
+          NextChapterIntent: CallbackAction<NextChapterIntent>(
+            onInvoke: (intent) {
+              if (!_isLoadingNewChapter &&
+                  widget.chapter.nextChapterId != null) {
+                _navigateToChapter(widget.chapter.nextChapterId);
+              }
+              return null;
+            },
+          ),
+          PreviousPageIntent: CallbackAction<PreviousPageIntent>(
+            onInvoke: (intent) {
+              if (_currentPage > 1) {
+                _pageController.previousPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
+              return null;
+            },
+          ),
+          NextPageIntent: CallbackAction<NextPageIntent>(
+            onInvoke: (intent) {
+              if (_pages != null && _currentPage < _pages!.length) {
+                _pageController.nextPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
+              return null;
+            },
+          ),
+        },
+        child: Scaffold(
+          backgroundColor: context.watch<SettingsProvider>().brightnessMode ==
+                  BrightnessMode.DARK
+              ? Colors.black
+              : context.watch<SettingsProvider>().brightnessMode ==
+                      BrightnessMode.LIGHT
+                  ? Colors.white
+                  : Theme.of(context).brightness == Brightness.dark
+                      ? Colors.black
+                      : Colors.white,
+          body: GestureDetector(
+            onTap: () {
+              setState(() {
+                _showControls = !_showControls;
+              });
+            },
+            child: Stack(
+              children: [
+                // Main content
+                FutureBuilder<List<String>>(
+                  future: _pagesFuture,
+                  builder: (context, snapshot) {
+                    if (_isLoadingNewChapter ||
+                        snapshot.connectionState == ConnectionState.waiting) {
+                      return _buildLoadingIndicator();
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          color: Colors.red.withOpacity(0.8),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                size: 48,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                snapshot.error.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
                                 ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Loading chapter...',
-                            style: TextStyle(color: Colors.white),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Colors.red,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _pagesFuture = _loadPages();
+                                  });
+                                },
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Retry'),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Go Back'),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  }
+                        ),
+                      );
+                    }
 
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 48, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error: ${snapshot.error}',
-                            style: const TextStyle(color: Colors.white),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _pagesFuture = _loadPages();
-                              });
-                            },
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final pages = snapshot.data!;
-                  return Stack(
-                    children: [
-                      PageView.builder(
-                        controller: _pageController,
-                        reverse: context
-                                .watch<SettingsProvider>()
-                                .readingDirection ==
-                            ReadingDirection.rtl,
-                        physics: _transformationController.value
-                                    .getMaxScaleOnAxis() >
-                                1.0
-                            ? const NeverScrollableScrollPhysics()
-                            : const PageScrollPhysics(),
-                        itemCount: pages.length,
-                        onPageChanged: (index) {
-                          setState(() {
-                            _currentPage = index + 1;
-                          });
-                        },
-                        itemBuilder: (context, index) {
-                          return GestureDetector(
-                            onDoubleTap: _handleDoubleTap,
-                            child: InteractiveViewer(
-                              transformationController:
-                                  _transformationController,
-                              minScale: 1.0,
-                              maxScale: 3.0,
-                              panEnabled: true,
-                              scaleEnabled: true,
-                              boundaryMargin: EdgeInsets.zero,
-                              constrained: true,
-                              clipBehavior: Clip.none,
-                              onInteractionUpdate: (details) {
-                                setState(() {
-                                  _isZoomed = _transformationController.value
-                                          .getMaxScaleOnAxis() >
-                                      1.0;
-                                });
-                              },
-                              child: Center(
-                                child: Container(
-                                  constraints: BoxConstraints(
-                                    maxWidth: MediaQuery.of(context).size.width,
-                                    maxHeight:
-                                        MediaQuery.of(context).size.height,
-                                  ),
-                                  child: MangaImage(
-                                    imageUrl: pages[index],
-                                    fit: BoxFit.contain,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            const Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.broken_image,
-                                              size: 48, color: Colors.red),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            'Failed to load image',
-                                            style:
-                                                TextStyle(color: Colors.white),
-                                          ),
-                                        ],
+                    final pages = snapshot.data!;
+                    return Stack(
+                      children: [
+                        PageView.builder(
+                          controller: _pageController,
+                          reverse: context
+                                  .watch<SettingsProvider>()
+                                  .readingDirection ==
+                              ReadingDirection.RTL,
+                          physics: _transformationController.value
+                                      .getMaxScaleOnAxis() >
+                                  1.0
+                              ? const NeverScrollableScrollPhysics()
+                              : const PageScrollPhysics(),
+                          itemCount: pages.length,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentPage = index + 1;
+                            });
+                          },
+                          itemBuilder: (context, index) {
+                            return GestureDetector(
+                              onDoubleTap: _handleDoubleTap,
+                              child: InteractiveViewer(
+                                transformationController:
+                                    _transformationController,
+                                minScale: 1.0,
+                                maxScale: 3.0,
+                                panEnabled: true,
+                                scaleEnabled: true,
+                                boundaryMargin: EdgeInsets.zero,
+                                constrained: true,
+                                clipBehavior: Clip.none,
+                                onInteractionUpdate: (details) {
+                                  setState(() {
+                                    _isZoomed = _transformationController.value
+                                            .getMaxScaleOnAxis() >
+                                        1.0;
+                                  });
+                                },
+                                child: Center(
+                                  child: Container(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width,
+                                      maxHeight:
+                                          MediaQuery.of(context).size.height,
+                                    ),
+                                    child: MangaImage(
+                                      imageUrl: pages[index],
+                                      fit: BoxFit.contain,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.broken_image,
+                                                size: 48, color: Colors.red),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              'Failed to load image',
+                                              style: TextStyle(
+                                                  color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      // Page indicator
-                      Positioned(
-                        bottom: 16,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'Page $_currentPage of ${pages.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
+                            );
+                          },
+                        ),
+                        // Page indicator
+                        Positioned(
+                          bottom: 16,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'Page $_currentPage of ${pages.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
 
-                      // Controls overlay
-                      if (_showControls) ...[
-                        // Top bar
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            color: Colors.black54,
-                            child: SafeArea(
+                        // Controls overlay
+                        if (_showControls) ...[
+                          // Top bar
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              color: Colors.black54,
                               child: AppBar(
                                 backgroundColor: Colors.transparent,
                                 elevation: 0,
@@ -368,7 +453,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                                       context
                                                   .watch<SettingsProvider>()
                                                   .readingDirection ==
-                                              ReadingDirection.ltr
+                                              ReadingDirection.LTR
                                           ? Icons.format_textdirection_l_to_r
                                           : Icons.format_textdirection_r_to_l,
                                       color: Colors.white,
@@ -384,12 +469,12 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                                       context
                                                   .watch<SettingsProvider>()
                                                   .brightnessMode ==
-                                              BrightnessMode.light
+                                              BrightnessMode.LIGHT
                                           ? Icons.brightness_7
                                           : context
                                                       .watch<SettingsProvider>()
                                                       .brightnessMode ==
-                                                  BrightnessMode.dark
+                                                  BrightnessMode.DARK
                                               ? Icons.brightness_4
                                               : Icons.brightness_auto,
                                       color: Colors.white,
@@ -404,18 +489,15 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                               ),
                             ),
                           ),
-                        ),
 
-                        // Bottom controls
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            color: Colors.black54,
-                            child: SafeArea(
-                              top: false,
+                          // Bottom controls
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              color: Colors.black54,
                               child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -472,23 +554,16 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  );
-                },
-              ),
-            ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _transformationController.dispose();
-    super.dispose();
   }
 }

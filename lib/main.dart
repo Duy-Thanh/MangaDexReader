@@ -6,6 +6,9 @@ import 'screens/home_screen.dart';
 import 'providers/settings_provider.dart';
 import 'providers/bookmark_provider.dart';
 import 'package:flutter/services.dart';
+import 'providers/theme_provider.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,35 +28,52 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(prefs),
+          create: (context) => SettingsProvider(prefs),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => ThemeProvider(),
         ),
         ChangeNotifierProvider(
           create: (_) => BookmarkProvider(prefs),
         ),
       ],
-      child: MyApp(prefs: prefs),
+      child: const MyApp(),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  final SharedPreferences prefs;
-
-  const MyApp({super.key, required this.prefs});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => SettingsProvider(prefs),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'MangaDex Reader',
-        theme: ThemeData(
-          primarySwatch: Colors.purple,
-          useMaterial3: true,
+    // Initialize ThemeProvider with current brightness mode
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final settings = context.read<SettingsProvider>();
+      context.read<ThemeProvider>().setThemeMode(settings.brightnessMode);
+    });
+
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      title: 'MangaDex Reader',
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
         ),
-        home: const HomeScreen(),
       ),
+      darkTheme: ThemeData.dark().copyWith(
+        primaryColor: Colors.deepPurple,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+        ),
+      ),
+      themeMode: context.watch<ThemeProvider>().themeMode,
+      home: const HomeScreen(),
     );
   }
 }

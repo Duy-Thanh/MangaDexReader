@@ -9,6 +9,7 @@ import '../widgets/manga_image.dart';
 import '../providers/settings_provider.dart';
 import '../providers/bookmark_provider.dart';
 import '../models/bookmark.dart';
+import '../widgets/loading_animation.dart';
 import 'dart:io' show Platform;
 
 final Map<String, Color> tagColors = {
@@ -72,12 +73,12 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 20,
                   shadows: [
                     Shadow(
                       color: Colors.black87,
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
@@ -85,19 +86,22 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  widget.manga.coverUrl != null
-                      ? MangaImage(
-                          imageUrl: widget.manga.coverUrl!,
-                          fit: BoxFit.cover,
-                        )
-                      : const Center(child: Icon(Icons.book)),
+                  Hero(
+                    tag: 'manga_${widget.manga.id}',
+                    child: widget.manga.coverUrl != null
+                        ? MangaImage(
+                            imageUrl: widget.manga.coverUrl!,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(color: Colors.grey[900]),
+                  ),
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.transparent,
+                          Colors.black38,
                           Colors.black87,
                         ],
                       ),
@@ -111,35 +115,48 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                 builder: (context, bookmarkProvider, child) {
                   final isBookmarked =
                       bookmarkProvider.getBookmark(widget.manga.id) != null;
-                  return IconButton(
-                    icon: Icon(
-                      Platform.isIOS ? CupertinoIcons.bookmark : Icons.bookmark,
-                      color: Colors.white,
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    onPressed: () {
-                      if (isBookmarked) {
-                        bookmarkProvider.removeBookmark(widget.manga.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Removed from bookmarks')),
-                        );
-                      } else {
-                        bookmarkProvider.addBookmark(
-                          Bookmark(
-                            mangaId: widget.manga.id,
-                            title: widget.manga.title,
-                            coverUrl: widget.manga.coverUrl,
-                            timestamp: DateTime.now(),
-                            tags: widget.manga.tags,
-                            status: widget.manga.status,
-                            description: widget.manga.description,
-                          ),
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Added to bookmarks')),
-                        );
-                      }
-                    },
+                    child: IconButton(
+                      icon: Icon(
+                        isBookmarked
+                            ? (Platform.isIOS
+                                ? CupertinoIcons.bookmark_fill
+                                : Icons.bookmark)
+                            : (Platform.isIOS
+                                ? CupertinoIcons.bookmark
+                                : Icons.bookmark_border),
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        if (isBookmarked) {
+                          bookmarkProvider.removeBookmark(widget.manga.id);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Removed from bookmarks')),
+                          );
+                        } else {
+                          bookmarkProvider.addBookmark(
+                            Bookmark(
+                              mangaId: widget.manga.id,
+                              title: widget.manga.title,
+                              coverUrl: widget.manga.coverUrl,
+                              timestamp: DateTime.now(),
+                              tags: widget.manga.tags,
+                              status: widget.manga.status,
+                              description: widget.manga.description,
+                            ),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Added to bookmarks')),
+                          );
+                        }
+                      },
+                    ),
                   );
                 },
               ),
@@ -147,48 +164,112 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
           ),
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle(context, 'Description'),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.manga.description ?? 'No description available',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.grey[800],
-                          height: 1.5,
-                        ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle(context, 'Tags'),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: widget.manga.tags.map((tag) {
-                      final color =
-                          tagColors[tag] ?? Theme.of(context).primaryColor;
-                      return Chip(
-                        label: Text(
-                          tag,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Description',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : Theme.of(context).primaryColor,
+                            ),
                           ),
-                        ),
-                        backgroundColor: color,
-                        elevation: 2,
-                        shadowColor: color.withOpacity(0.3),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 0),
-                      );
-                    }).toList(),
+                          const SizedBox(height: 12),
+                          Text(
+                            widget.manga.description ??
+                                'No description available',
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      height: 1.5,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle(context, 'Chapters'),
+                  const SizedBox(height: 16),
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tags',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : Theme.of(context).primaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: widget.manga.tags.map((tag) {
+                              final color = tagColors[tag] ??
+                                  Theme.of(context).primaryColor;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: color, width: 1),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Text(
+                'Chapters',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
               ),
             ),
           ),
@@ -196,53 +277,49 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
             future: _chaptersFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Platform.isIOS
-                        ? const CupertinoActivityIndicator()
-                        : const CircularProgressIndicator(),
-                  ),
+                return const SliverFillRemaining(
+                  child: LoadingAnimation(),
                 );
               }
 
               if (snapshot.hasError) {
                 return SliverFillRemaining(
-                  hasScrollBody: false,
                   child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Colors.red,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error: ${snapshot.error}',
-                            style: const TextStyle(color: Colors.red),
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _chaptersFuture = MangaDexService.getChapters(
-                                    widget.manga.id,
-                                    translatedLanguages: context
-                                        .read<SettingsProvider>()
-                                        .enabledLanguageCodes);
-                              });
-                            },
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading chapters',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.error.toString(),
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.red,
+                                  ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _chaptersFuture = MangaDexService.getChapters(
+                                widget.manga.id,
+                                translatedLanguages: context
+                                    .read<SettingsProvider>()
+                                    .enabledLanguageCodes,
+                              );
+                            });
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -258,132 +335,155 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                         horizontal: 16,
                         vertical: 4,
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        leading: CircleAvatar(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: Text(
-                            chapter.chapter ?? 'N/A',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              chapter.title ??
-                                  'Chapter ${chapter.chapter ?? 'N/A'}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF1F1F1F)
+                          : Colors.white,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChapterReaderScreen(
+                                chapter: chapter,
+                                mangaId: widget.manga.id,
                               ),
                             ),
-                            if (chapter.scanlationGroup != null) ...[
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Row(
                                 children: [
-                                  Icon(
-                                    Icons.group,
-                                    size: 14,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF6200EA),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
                                     child: Text(
-                                      'Scanlated by ${chapter.scanlationGroup!}',
-                                      style: TextStyle(
-                                        color: Theme.of(context).primaryColor,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
+                                      'Ch. ${chapter.chapter ?? 'N/A'}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (chapter.volume != null) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1976D2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        'Vol. ${chapter.volume}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  const Spacer(),
+                                  Text(
+                                    _formatDate(chapter.publishedAt),
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                            ],
-                          ],
-                        ),
-                        subtitle: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              if (chapter.volume != null)
-                                Container(
-                                  margin: const EdgeInsets.only(right: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .primaryColor
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    'Vol. ${chapter.volume}',
+                              if (chapter.title != null ||
+                                  chapter.scanlationGroup != null) ...[
+                                const SizedBox(height: 8),
+                                if (chapter.title != null)
+                                  Text(
+                                    chapter.title!,
                                     style: TextStyle(
-                                      color: Theme.of(context).primaryColor,
-                                      fontSize: 12,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w500,
+                                      color: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black87,
                                     ),
                                   ),
-                                ),
-                              Icon(
-                                Icons.photo,
-                                size: 14,
-                                color: Colors.grey[600],
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${chapter.pageCount} pages',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.access_time,
-                                size: 14,
-                                color: Colors.grey[600],
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _formatDate(chapter.publishedAt),
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
+                                if (chapter.scanlationGroup != null) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.group,
+                                        size: 16,
+                                        color: Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.grey[400]
+                                            : Theme.of(context).primaryColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'Scanlated by ${chapter.scanlationGroup!}',
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(context).brightness ==
+                                                        Brightness.dark
+                                                    ? Colors.grey[400]
+                                                    : Theme.of(context)
+                                                        .primaryColor,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.photo_library,
+                                    size: 16,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${chapter.pageCount} pages',
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ),
-                        trailing: Container(
-                          decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            color: Theme.of(context).primaryColor,
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChapterReaderScreen(
-                                    chapter: chapter,
-                                    mangaId: widget.manga.id,
-                                  ),
-                                ),
-                              );
-                            },
                           ),
                         ),
                       ),
