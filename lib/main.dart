@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 import 'providers/settings_provider.dart';
 import 'providers/bookmark_provider.dart';
 import 'package:flutter/services.dart';
@@ -73,7 +74,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       themeMode: context.watch<ThemeProvider>().themeMode,
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }
