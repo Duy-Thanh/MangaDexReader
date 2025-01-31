@@ -45,7 +45,7 @@ class ChapterReaderScreen extends StatefulWidget {
 
 class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   late Future<List<String>> _pagesFuture;
-  final PageController _pageController = PageController();
+  late PageController _pageController;
   int _currentPage = 1;
   bool _showControls = true;
   bool _isLoadingNewChapter = false;
@@ -67,6 +67,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     super.initState();
     _pagesFuture = _loadPages();
     _loadChapterPages();
+    _pageController = PageController();
   }
 
   Future<List<String>> _loadPages() async {
@@ -370,9 +371,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                                   .watch<SettingsProvider>()
                                   .readingDirection ==
                               ReadingDirection.RTL,
-                          physics: _transformationController.value
-                                      .getMaxScaleOnAxis() >
-                                  1.0
+                          physics: _isZoomed
                               ? const NeverScrollableScrollPhysics()
                               : const PageScrollPhysics(),
                           itemCount: pages.length,
@@ -385,65 +384,76 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                             return GestureDetector(
                               onDoubleTap: _handleDoubleTap,
                               child: InteractiveViewer(
-                                transformationController:
-                                    _transformationController,
-                                minScale: 1.0,
-                                maxScale: 3.0,
-                                panEnabled: true,
-                                scaleEnabled: true,
-                                boundaryMargin: EdgeInsets.zero,
-                                constrained: true,
                                 clipBehavior: Clip.none,
                                 onInteractionUpdate: (details) {
-                                  setState(() {
-                                    _isZoomed = _transformationController.value
-                                            .getMaxScaleOnAxis() >
-                                        1.0;
-                                  });
+                                  if ((details.scale > 1.0) != _isZoomed) {
+                                    setState(() {
+                                      _isZoomed = details.scale > 1.0;
+                                    });
+                                  }
                                 },
-                                child: Center(
-                                  child: Container(
-                                    constraints: BoxConstraints(
-                                      maxWidth:
-                                          MediaQuery.of(context).size.width,
-                                      maxHeight:
-                                          MediaQuery.of(context).size.height,
-                                    ),
-                                    child: FutureBuilder<ImageProvider>(
-                                      future: ImageCacheService
-                                          .getCachedImageWithValidation(
-                                        widget.chapter.id,
-                                        pages[index],
-                                        MangaDexService.getImageEtag(
-                                                pages[index]) ??
-                                            DateTime.now().toString(),
-                                      ),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.hasData) {
-                                          return ExtendedImage(
-                                            image: snapshot.data!,
-                                            fit: BoxFit.contain,
-                                            mode: ExtendedImageMode.gesture,
-                                            initGestureConfigHandler: (state) {
-                                              return GestureConfig(
-                                                minScale: 0.9,
-                                                animationMinScale: 0.7,
-                                                maxScale: 3.0,
-                                                animationMaxScale: 3.5,
-                                                speed: 1.0,
-                                                inertialSpeed: 100.0,
-                                                initialScale: 1.0,
-                                                inPageView: true,
-                                              );
+                                child: FutureBuilder<ImageProvider>(
+                                  future: ImageCacheService
+                                      .getCachedImageWithValidation(
+                                    widget.chapter.id,
+                                    pages[index],
+                                    MangaDexService.getImageEtag(
+                                            pages[index]) ??
+                                        DateTime.now().toString(),
+                                  ),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasData) {
+                                      return ExtendedImage(
+                                        image: snapshot.data!,
+                                        fit: BoxFit.contain,
+                                        mode: ExtendedImageMode.gesture,
+                                        initGestureConfigHandler: (state) {
+                                          return GestureConfig(
+                                            minScale: 0.9,
+                                            animationMinScale: 0.7,
+                                            maxScale: 3.0,
+                                            animationMaxScale: 3.5,
+                                            speed: 1.0,
+                                            inertialSpeed: 100.0,
+                                            initialScale: 1.0,
+                                            inPageView: true,
+                                            cacheGesture: false,
+                                            gestureDetailsIsChanged:
+                                                (GestureDetails? details) {
+                                              if (details != null) {
+                                                setState(() {
+                                                  _isZoomed =
+                                                      (details.totalScale ??
+                                                              1.0) >
+                                                          1.0;
+                                                });
+                                              }
                                             },
                                           );
-                                        }
-                                        return const Center(
-                                          child: CircularProgressIndicator(),
-                                        );
-                                      },
-                                    ),
-                                  ),
+                                        },
+                                        loadStateChanged:
+                                            (ExtendedImageState state) {
+                                          switch (
+                                              state.extendedImageLoadState) {
+                                            case LoadState.loading:
+                                              return const Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              );
+                                            case LoadState.completed:
+                                              return null;
+                                            case LoadState.failed:
+                                              return const Center(
+                                                child: Icon(Icons.error),
+                                              );
+                                          }
+                                        },
+                                      );
+                                    }
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  },
                                 ),
                               ),
                             );
