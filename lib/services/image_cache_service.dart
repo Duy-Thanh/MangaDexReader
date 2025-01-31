@@ -6,14 +6,20 @@ import '../providers/settings_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:data_saver/data_saver.dart';
 import 'dart:io' show Platform;
+import 'package:extended_image/extended_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import '../services/mangadex_service.dart';
+import 'package:dio/dio.dart';
 
 class ImageCacheService {
   static final Map<String, List<String>> _chapterUrlCache = {};
   static final Map<String, ImageProvider> _imageCache = {};
-  static const int _maxCachedChapters = 3;
-  static const int _maxPreloadPagesNormal = 5; // Normal mode
-  static const int _maxPreloadPagesDataSaving = 2; // Data saving mode
+  static const int _maxCachedChapters = 5;
+  static const int _maxPreloadPagesNormal = 8;
+  static const int _maxPreloadPagesDataSaving = 3;
   static final _dataSaver = DataSaver();
+
+  static final cacheManager = DefaultCacheManager();
 
   // Cache chapter URLs
   static void cacheChapterUrls(String chapterId, List<String> urls) {
@@ -45,7 +51,7 @@ class ImageCacheService {
     return settings.dataSavingMode;
   }
 
-  // Update preload method to use new check
+  // Preload with better error handling and parallel loading
   static Future<void> preloadChapterImages(
     String chapterId,
     List<String> urls,
@@ -57,31 +63,81 @@ class ImageCacheService {
 
     final urlsToPreload = urls.take(maxPages).toList();
 
-    for (var url in urlsToPreload) {
+    // Parallel preloading with rate limiting
+    final futures = <Future>[];
+    for (var i = 0; i < urlsToPreload.length; i++) {
+      final url = urlsToPreload[i];
       final cacheKey = '${chapterId}_$url';
+
       if (!_imageCache.containsKey(cacheKey)) {
-        try {
-          final imageProvider = NetworkImage(
-            url,
-            headers: {
-              'User-Agent': 'MangaDexReader/1.0.0 (Flutter App)',
-              'Accept': 'image/*',
-              'Referer': 'https://mangadex.org/',
-            },
-          );
-          await precacheImage(imageProvider, context);
-          _imageCache[cacheKey] = imageProvider;
-        } catch (e) {
-          print('Error preloading image: $e');
-        }
+        // Add small delay between parallel requests to prevent rate limiting
+        await Future.delayed(Duration(milliseconds: i * 100));
+
+        futures.add(_preloadSingleImage(url, cacheKey, context));
       }
+    }
+
+    // Wait for all preloads to complete
+    await Future.wait(futures);
+  }
+
+  static Future<void> _preloadSingleImage(
+    String url,
+    String cacheKey,
+    BuildContext context,
+  ) async {
+    try {
+      // Try to get from cache first
+      final fileInfo = await cacheManager.getFileFromCache(url);
+      if (fileInfo == null) {
+        // Download and cache if not found
+        final imageProvider = ExtendedNetworkImageProvider(
+          url,
+          cache: true,
+          headers: {
+            'User-Agent': 'MangaDexReader/1.0.0 (Flutter App)',
+            'Accept': 'image/*',
+            'Referer': 'https://mangadex.org/',
+          },
+        );
+
+        await precacheImage(imageProvider, context);
+        _imageCache[cacheKey] = imageProvider;
+      }
+    } catch (e) {
+      print('Error preloading image: $e');
     }
   }
 
-  // Get cached image if available
-  static ImageProvider? getCachedImage(String chapterId, String url) {
+  // Get cached image with fallback
+  static ImageProvider getCachedImage(String chapterId, String url) {
     final cacheKey = '${chapterId}_$url';
-    return _imageCache[cacheKey];
+    return _imageCache[cacheKey] ??
+        ExtendedNetworkImageProvider(
+          url,
+          cache: true,
+          headers: {
+            'User-Agent': 'MangaDexReader/1.0.0 (Flutter App)',
+            'Accept': 'image/*',
+            'Referer': 'https://mangadex.org/',
+          },
+        );
+  }
+
+  // Preload next chapter more aggressively
+  static Future<void> preloadNextChapter(String nextChapterId) async {
+    try {
+      final nextPages = await MangaDexService.getChapterPages(nextChapterId);
+      // Cache URLs immediately
+      cacheChapterUrls(nextChapterId, nextPages);
+
+      // Start preloading first few pages in background
+      for (var url in nextPages.take(3)) {
+        await cacheManager.downloadFile(url);
+      }
+    } catch (e) {
+      print('Error preloading next chapter: $e');
+    }
   }
 
   // Clear cache

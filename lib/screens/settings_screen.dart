@@ -261,7 +261,7 @@ class SettingsScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.info_outline),
               title: const Text('Version'),
-              subtitle: const Text('1.0.0'),
+              subtitle: const Text('0.1.0'),
               onTap: () {
                 showAboutDialog(
                   context: context,

@@ -11,6 +11,7 @@ import '../models/bookmark.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 import '../services/image_cache_service.dart';
+import 'package:extended_image/extended_image.dart';
 
 class PreviousChapterIntent extends Intent {
   const PreviousChapterIntent();
@@ -408,37 +409,40 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                                       maxHeight:
                                           MediaQuery.of(context).size.height,
                                     ),
-                                    child: Image(
+                                    child: ExtendedImage(
                                       image: ImageCacheService.getCachedImage(
-                                              widget.chapter.id,
-                                              pages[index]) ??
-                                          NetworkImage(
-                                            pages[index],
-                                            headers: {
-                                              'User-Agent':
-                                                  'MangaDexReader/1.0.0 (Flutter App)',
-                                              'Accept': 'image/*',
-                                              'Referer':
-                                                  'https://mangadex.org/',
-                                            },
-                                          ),
+                                        widget.chapter.id,
+                                        pages[index],
+                                      ),
                                       fit: BoxFit.contain,
-                                      loadingBuilder:
-                                          (context, child, loadingProgress) {
-                                        if (loadingProgress == null)
-                                          return child;
-                                        return Center(
-                                          child: CircularProgressIndicator(
-                                            value: loadingProgress
-                                                        .expectedTotalBytes !=
-                                                    null
-                                                ? loadingProgress
-                                                        .cumulativeBytesLoaded /
-                                                    loadingProgress
-                                                        .expectedTotalBytes!
-                                                : null,
-                                          ),
+                                      mode: ExtendedImageMode.gesture,
+                                      initGestureConfigHandler: (state) {
+                                        return GestureConfig(
+                                          minScale: 0.9,
+                                          animationMinScale: 0.7,
+                                          maxScale: 3.0,
+                                          animationMaxScale: 3.5,
+                                          speed: 1.0,
+                                          inertialSpeed: 100.0,
+                                          initialScale: 1.0,
+                                          inPageView: true,
                                         );
+                                      },
+                                      loadStateChanged:
+                                          (ExtendedImageState state) {
+                                        switch (state.extendedImageLoadState) {
+                                          case LoadState.loading:
+                                            return const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            );
+                                          case LoadState.completed:
+                                            return null; // Return null to display the image
+                                          case LoadState.failed:
+                                            return const Center(
+                                              child: Icon(Icons.error),
+                                            );
+                                        }
                                       },
                                     ),
                                   ),
