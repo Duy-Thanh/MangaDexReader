@@ -8,6 +8,7 @@ import 'providers/settings_provider.dart';
 import 'providers/bookmark_provider.dart';
 import 'package:flutter/services.dart';
 import 'providers/theme_provider.dart';
+import 'services/navigation_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -55,7 +56,7 @@ class MyApp extends StatelessWidget {
     });
 
     return MaterialApp(
-      navigatorKey: navigatorKey,
+      navigatorKey: NavigationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'MangaDex Reader',
       theme: ThemeData(

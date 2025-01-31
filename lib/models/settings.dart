@@ -104,3 +104,67 @@ class Language {
     Language(code: 'id', name: 'Indonesian'),
   ];
 }
+
+class Settings {
+  final bool useProxy;
+  final String proxyType; // 'system', 'http', 'socks5'
+  final String proxyHost;
+  final int proxyPort;
+  final String? username;
+  final String? password;
+  final bool dataSavingMode;
+
+  Settings({
+    this.useProxy = false,
+    this.proxyType = 'system',
+    this.proxyHost = '',
+    this.proxyPort = 8080,
+    this.username,
+    this.password,
+    this.dataSavingMode = false,
+  });
+
+  Settings copyWith({
+    bool? useProxy,
+    String? proxyType,
+    String? proxyHost,
+    int? proxyPort,
+    String? username,
+    String? password,
+    bool? dataSavingMode,
+  }) {
+    return Settings(
+      useProxy: useProxy ?? this.useProxy,
+      proxyType: proxyType ?? this.proxyType,
+      proxyHost: proxyHost ?? this.proxyHost,
+      proxyPort: proxyPort ?? this.proxyPort,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      dataSavingMode: dataSavingMode ?? this.dataSavingMode,
+    );
+  }
+
+  factory Settings.fromJson(Map<String, dynamic> json) {
+    return Settings(
+      useProxy: json['useProxy'] ?? false,
+      proxyType: json['proxyType'] ?? 'system',
+      proxyHost: json['proxyHost'] ?? '',
+      proxyPort: json['proxyPort'] ?? 8080,
+      username: json['username'],
+      password: json['password'],
+      dataSavingMode: json['dataSavingMode'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'useProxy': useProxy,
+      'proxyType': proxyType,
+      'proxyHost': proxyHost,
+      'proxyPort': proxyPort,
+      'username': username,
+      'password': password,
+      'dataSavingMode': dataSavingMode,
+    };
+  }
+}

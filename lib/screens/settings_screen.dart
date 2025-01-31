@@ -6,6 +6,7 @@ import '../utils/network_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
 import '../screens/language_settings_screen.dart';
+import '../services/image_cache_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -265,7 +266,7 @@ class SettingsScreen extends StatelessWidget {
                 showAboutDialog(
                   context: context,
                   applicationName: 'Manga Reader',
-                  applicationVersion: '1.0.0',
+                  applicationVersion: '0.1.0',
                   applicationIcon: const Icon(
                     Icons.book_rounded,
                     size: 48,
@@ -278,6 +279,44 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 );
               },
+            ),
+          ),
+
+          // Data Saving Mode
+          _buildSection(
+            title: 'Data Saving',
+            child: Column(
+              children: [
+                FutureBuilder<bool>(
+                  future: ImageCacheService.isSystemDataSavingEnabled(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data!) {
+                      return ListTile(
+                        leading: const Icon(Icons.data_saver_on),
+                        title: Text(Platform.isIOS
+                            ? 'Low Data Mode Enabled'
+                            : 'Data Saver Enabled'),
+                        subtitle: const Text('System data saving is active'),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+                Consumer<SettingsProvider>(
+                  builder: (context, settings, _) => SwitchListTile(
+                    title: const Text('App Data Saving Mode'),
+                    subtitle: const Text(
+                        'Reduce data usage by limiting preloading when system data saving is off'),
+                    value: settings.dataSavingMode,
+                    onChanged: (value) {
+                      settings.updateDataSavingMode(value);
+                      if (value) {
+                        ImageCacheService.clearCache();
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],

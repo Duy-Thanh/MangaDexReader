@@ -10,6 +10,7 @@ import '../providers/bookmark_provider.dart';
 import '../models/bookmark.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
+import '../services/image_cache_service.dart';
 
 class PreviousChapterIntent extends Intent {
   const PreviousChapterIntent();
@@ -51,6 +52,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
       TransformationController();
   bool _isZoomed = false;
   List<String>? _pages;
+  bool _isLoading = false;
 
   final Map<ShortcutActivator, Intent> _shortcuts = {
     LogicalKeySet(LogicalKeyboardKey.arrowLeft): const PreviousChapterIntent(),
@@ -63,13 +65,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   void initState() {
     super.initState();
     _pagesFuture = _loadPages();
-    _loadPages().then((pages) {
-      if (mounted) {
-        setState(() {
-          _pages = pages;
-        });
-      }
-    });
+    _loadChapterPages();
   }
 
   Future<List<String>> _loadPages() async {
@@ -82,6 +78,60 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     } catch (e) {
       print('Error loading pages: $e');
       throw Exception('Failed to load chapter: ${e.toString()}');
+    }
+  }
+
+  Future<void> _loadChapterPages() async {
+    try {
+      setState(() => _isLoading = true);
+
+      final pages = await MangaDexService.getChapterPages(widget.chapter.id);
+      ImageCacheService.cacheChapterUrls(widget.chapter.id, pages);
+
+      // Check both system and app data saving settings
+      final shouldLimit = await ImageCacheService.shouldLimitDataUsage(context);
+
+      // Only preload if data saving is not enabled
+      if (!shouldLimit) {
+        _preloadImages(pages);
+
+        if (widget.chapter.nextChapterId != null) {
+          _preloadNextChapter();
+        }
+      }
+
+      setState(() {
+        _pages = pages;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading chapter: $e');
+    }
+  }
+
+  Future<void> _preloadImages(List<String> pages) async {
+    await ImageCacheService.preloadChapterImages(
+      widget.chapter.id,
+      pages,
+      context,
+    );
+  }
+
+  Future<void> _preloadNextChapter() async {
+    try {
+      final nextChapter =
+          await MangaDexService.getChapter(widget.chapter.nextChapterId!);
+      if (nextChapter != null) {
+        final nextPages = await MangaDexService.getChapterPages(nextChapter.id);
+        ImageCacheService.cacheChapterUrls(nextChapter.id, nextPages);
+        await ImageCacheService.preloadChapterImages(
+          nextChapter.id,
+          nextPages.take(3).toList(),
+          context,
+        );
+      }
+    } catch (e) {
+      print('Error preloading next chapter: $e');
     }
   }
 
@@ -358,27 +408,38 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                                       maxHeight:
                                           MediaQuery.of(context).size.height,
                                     ),
-                                    child: MangaImage(
-                                      imageUrl: pages[index],
+                                    child: Image(
+                                      image: ImageCacheService.getCachedImage(
+                                              widget.chapter.id,
+                                              pages[index]) ??
+                                          NetworkImage(
+                                            pages[index],
+                                            headers: {
+                                              'User-Agent':
+                                                  'MangaDexReader/1.0.0 (Flutter App)',
+                                              'Accept': 'image/*',
+                                              'Referer':
+                                                  'https://mangadex.org/',
+                                            },
+                                          ),
                                       fit: BoxFit.contain,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.broken_image,
-                                                size: 48, color: Colors.red),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              'Failed to load image',
-                                              style: TextStyle(
-                                                  color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                        if (loadingProgress == null)
+                                          return child;
+                                        return Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress
+                                                        .expectedTotalBytes !=
+                                                    null
+                                                ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                                : null,
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
                                 ),

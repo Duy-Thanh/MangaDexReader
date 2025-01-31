@@ -10,6 +10,7 @@ class SettingsProvider with ChangeNotifier {
   ProxySettings _proxySettings = ProxySettings();
   ReadingDirection _readingDirection = ReadingDirection.LTR;
   BrightnessMode _brightnessMode = BrightnessMode.DARK;
+  bool _dataSavingMode = false;
   final SharedPreferences _prefs;
   List<Language> _languages = [];
 
@@ -25,6 +26,7 @@ class SettingsProvider with ChangeNotifier {
   List<Language> get languages => _languages;
   List<String> get enabledLanguageCodes =>
       _languages.where((l) => l.enabled).map((l) => l.code).toList();
+  bool get dataSavingMode => _dataSavingMode;
 
   Future<void> _loadSettings() async {
     final settingsJson = _prefs.getString('proxy_settings');
@@ -51,6 +53,7 @@ class SettingsProvider with ChangeNotifier {
       );
     }).toList();
 
+    _dataSavingMode = _prefs.getBool('data_saving_mode') ?? false;
     notifyListeners();
   }
 
@@ -118,5 +121,11 @@ class SettingsProvider with ChangeNotifier {
         updateBrightnessMode(BrightnessMode.DARK);
         break;
     }
+  }
+
+  Future<void> updateDataSavingMode(bool value) async {
+    _dataSavingMode = value;
+    await _prefs.setBool('data_saving_mode', value);
+    notifyListeners();
   }
 }
