@@ -8,16 +8,27 @@ class ThemeProvider with ChangeNotifier {
 
   void setThemeMode(BrightnessMode mode) {
     switch (mode) {
-      case BrightnessMode.LIGHT:
+      case BrightnessMode.light:
         _themeMode = ThemeMode.light;
         break;
-      case BrightnessMode.DARK:
+      case BrightnessMode.dark:
         _themeMode = ThemeMode.dark;
         break;
-      case BrightnessMode.SYSTEM:
+      case BrightnessMode.system:
         _themeMode = ThemeMode.system;
         break;
     }
     notifyListeners();
+  }
+
+  ThemeMode getThemeMode(BrightnessMode mode) {
+    switch (mode) {
+      case BrightnessMode.light:
+        return ThemeMode.light;
+      case BrightnessMode.dark:
+        return ThemeMode.dark;
+      case BrightnessMode.system:
+        return ThemeMode.system;
+    }
   }
 }

@@ -14,13 +14,20 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        elevation: 0,
-      ),
-      body: ListView(
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'General',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           // Reading Direction
           _buildSection(
             title: 'Reading Direction',
@@ -57,21 +64,21 @@ class SettingsScreen extends StatelessWidget {
                   RadioListTile<BrightnessMode>(
                     title: const Text('Light'),
                     secondary: const Icon(Icons.brightness_7),
-                    value: BrightnessMode.LIGHT,
+                    value: BrightnessMode.light,
                     groupValue: settings.brightnessMode,
                     onChanged: (value) => settings.updateBrightnessMode(value!),
                   ),
                   RadioListTile<BrightnessMode>(
                     title: const Text('Dark'),
                     secondary: const Icon(Icons.brightness_4),
-                    value: BrightnessMode.DARK,
+                    value: BrightnessMode.dark,
                     groupValue: settings.brightnessMode,
                     onChanged: (value) => settings.updateBrightnessMode(value!),
                   ),
                   RadioListTile<BrightnessMode>(
                     title: const Text('System'),
                     secondary: const Icon(Icons.brightness_auto),
-                    value: BrightnessMode.SYSTEM,
+                    value: BrightnessMode.system,
                     groupValue: settings.brightnessMode,
                     onChanged: (value) => settings.updateBrightnessMode(value!),
                   ),

@@ -14,9 +14,9 @@ class BookmarksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bookmarked Manga'),
-      ),
+      // appBar: AppBar(
+      //   title: const Text('Bookmarked Manga'),
+      // ),
       body: Consumer<BookmarkProvider>(
         builder: (context, bookmarkProvider, child) {
           if (bookmarkProvider.bookmarks.isEmpty) {

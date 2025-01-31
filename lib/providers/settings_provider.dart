@@ -9,7 +9,7 @@ import '../main.dart';
 class SettingsProvider with ChangeNotifier {
   ProxySettings _proxySettings = ProxySettings();
   ReadingDirection _readingDirection = ReadingDirection.LTR;
-  BrightnessMode _brightnessMode = BrightnessMode.DARK;
+  BrightnessMode _brightnessMode = BrightnessMode.dark;
   bool _dataSavingMode = false;
   final SharedPreferences _prefs;
   List<Language> _languages = [];
@@ -42,8 +42,8 @@ class SettingsProvider with ChangeNotifier {
     );
 
     _brightnessMode = BrightnessMode.values.firstWhere(
-      (e) => e.toString() == _prefs.getString('brightness_mode'),
-      orElse: () => BrightnessMode.DARK,
+      (e) => e.toString() == _prefs.getString('brightnessMode'),
+      orElse: () => BrightnessMode.dark,
     );
 
     final languageSettings = _prefs.getStringList('enabled_languages');
@@ -71,7 +71,7 @@ class SettingsProvider with ChangeNotifier {
 
   void updateBrightnessMode(BrightnessMode mode) {
     _brightnessMode = mode;
-    _prefs.setString('brightness_mode', mode.toString());
+    _prefs.setString('brightnessMode', mode.toString());
     // Get ThemeProvider and update theme
     Provider.of<ThemeProvider>(navigatorKey.currentContext!, listen: false)
         .setThemeMode(mode);
@@ -96,7 +96,7 @@ class SettingsProvider with ChangeNotifier {
 
   Future<void> _saveSettings() async {
     await _prefs.setString('reading_direction', _readingDirection.toString());
-    await _prefs.setString('brightness_mode', _brightnessMode.toString());
+    await _prefs.setString('brightnessMode', _brightnessMode.toString());
     await _prefs.setStringList(
       'enabled_languages',
       enabledLanguageCodes,
@@ -111,14 +111,14 @@ class SettingsProvider with ChangeNotifier {
 
   void toggleBrightnessMode() {
     switch (_brightnessMode) {
-      case BrightnessMode.DARK:
-        updateBrightnessMode(BrightnessMode.LIGHT);
+      case BrightnessMode.dark:
+        updateBrightnessMode(BrightnessMode.light);
         break;
-      case BrightnessMode.LIGHT:
-        updateBrightnessMode(BrightnessMode.SYSTEM);
+      case BrightnessMode.light:
+        updateBrightnessMode(BrightnessMode.system);
         break;
-      case BrightnessMode.SYSTEM:
-        updateBrightnessMode(BrightnessMode.DARK);
+      case BrightnessMode.system:
+        updateBrightnessMode(BrightnessMode.dark);
         break;
     }
   }

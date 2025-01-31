@@ -211,10 +211,27 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   }
 
   void _handleDoubleTap() {
+    final settings = context.read<SettingsProvider>();
     if (_transformationController.value.getMaxScaleOnAxis() > 1.0) {
       _transformationController.value = Matrix4.identity();
+      setState(() {
+        _isZoomed = false;
+      });
     } else {
-      _transformationController.value = Matrix4.diagonal3Values(2.0, 2.0, 1.0);
+      if (settings.brightnessMode == BrightnessMode.dark) {
+        settings.updateBrightnessMode(BrightnessMode.light);
+      } else {
+        settings.updateBrightnessMode(BrightnessMode.dark);
+      }
+    }
+  }
+
+  void _toggleBrightness() {
+    final settings = context.read<SettingsProvider>();
+    if (settings.brightnessMode == BrightnessMode.dark) {
+      settings.updateBrightnessMode(BrightnessMode.light);
+    } else {
+      settings.updateBrightnessMode(BrightnessMode.dark);
     }
   }
 
@@ -287,10 +304,10 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
         },
         child: Scaffold(
           backgroundColor: context.watch<SettingsProvider>().brightnessMode ==
-                  BrightnessMode.DARK
+                  BrightnessMode.dark
               ? Colors.black
               : context.watch<SettingsProvider>().brightnessMode ==
-                      BrightnessMode.LIGHT
+                      BrightnessMode.light
                   ? Colors.white
                   : Theme.of(context).brightness == Brightness.dark
                       ? Colors.black
@@ -542,21 +559,12 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                                       context
                                                   .watch<SettingsProvider>()
                                                   .brightnessMode ==
-                                              BrightnessMode.LIGHT
-                                          ? Icons.brightness_7
-                                          : context
-                                                      .watch<SettingsProvider>()
-                                                      .brightnessMode ==
-                                                  BrightnessMode.DARK
-                                              ? Icons.brightness_4
-                                              : Icons.brightness_auto,
+                                              BrightnessMode.light
+                                          ? Icons.brightness_4
+                                          : Icons.brightness_5,
                                       color: Colors.white,
                                     ),
-                                    onPressed: () {
-                                      context
-                                          .read<SettingsProvider>()
-                                          .toggleBrightnessMode();
-                                    },
+                                    onPressed: _toggleBrightness,
                                   ),
                                 ],
                               ),

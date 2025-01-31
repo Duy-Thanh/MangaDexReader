@@ -1,0 +1,50 @@
+{
+    "name": "Mangareader",
+    "identifier": "com.nekkochan.mangareader",
+    "sourceURL": "http://3.27.30.118/api/file/download/apps.json",
+    "apps": [
+    {
+      "name": "MangaReader",
+      "bundleIdentifier": "com.nekkochan.mangareader",
+      "developerName": "Nekkochan",
+      "subtitle": "Simple and efficient manga reading app from MangaDex. Works on both iOS, Android, Windows, macOS, and Linux.",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "date": "2025-01-30",
+          "localizedDescription": "First release.",
+          "downloadURL": "http://3.27.30.118/api/files/download/MangaReader_iphoneos.ipa",
+          "size": 87129,
+          "minOSVersion": "15.0"
+        }
+      ],
+      "downloadURL": "http://3.27.30.118/api/files/download/MangaReader_iphoneos.ipa",
+      "localizedDescription": "Features include:\n\n• Cool graphics\n• Top notch performance\n• Satisfying interactions",
+      "iconURL": "https://myapp.com/assets/icon.png",
+      "tintColor": "8A28F7",
+      "permissions": [
+        {
+          "type": "network",
+          "usageDescription": "Allows the app to access the internet to read manga and images online."
+        }
+      ],
+      "screenshotURLs": [
+        "https://myapp.com/assets/screen0.png"
+      ],
+      "beta": false
+    }
+  ],
+  "news": [
+    {
+      "title": "MangaReader Now Available!",
+      "identifier": "mangareader-available-download",
+      "caption": "The app to beat all apps.",
+      "date": "2020-04-21",
+      "tintColor": "8A28F7",
+      "imageURL": "https://myapp.com/assets/news.png",
+      "url": "https://myapp.com",
+      "appID": "com.nekkochan.mangareader",
+      "notify": false
+    }
+  ]
+}

@@ -4,12 +4,19 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/manga_details_screen.dart';
+import 'screens/chapter_reader_screen.dart';
+import 'screens/bookmarks_screen.dart';
 import 'providers/settings_provider.dart';
 import 'providers/bookmark_provider.dart';
 import 'package:flutter/services.dart';
 import 'providers/theme_provider.dart';
 import 'services/navigation_service.dart';
 import 'services/image_cache_service.dart';
+import 'models/manga.dart';
+import 'models/chapter.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -58,7 +65,7 @@ class MyApp extends StatelessWidget {
     });
 
     return MaterialApp(
-      navigatorKey: NavigationService.navigatorKey,
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'MangaDex Reader',
       theme: ThemeData(
@@ -77,7 +84,38 @@ class MyApp extends StatelessWidget {
         ),
       ),
       themeMode: context.watch<ThemeProvider>().themeMode,
-      home: const SplashScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/search': (context) => const SearchScreen(),
+        '/settings': (context) => const SettingsScreen(),
+        '/bookmarks': (context) => const BookmarksScreen(),
+      },
+      onGenerateRoute: (settings) {
+        // Handle dynamic routes
+        if (settings.name == '/manga') {
+          final manga = settings.arguments as Manga;
+          return MaterialPageRoute(
+            builder: (context) => MangaDetailsScreen(manga: manga),
+          );
+        }
+        if (settings.name == '/chapter') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => ChapterReaderScreen(
+              chapter: args['chapter'] as Chapter,
+              mangaId: args['mangaId'] as String,
+            ),
+          );
+        }
+        return null;
+      },
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => const HomeScreen(),
+        );
+      },
     );
   }
 }

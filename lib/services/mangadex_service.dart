@@ -226,4 +226,58 @@ class MangaDexService {
   static String? getImageEtag(String url) {
     return _imageEtags[url];
   }
+
+  static Future<List<Manga>> getTopManga() async {
+    return _getMangaList('top');
+  }
+
+  static Future<List<Manga>> getTrendingManga() async {
+    return _getMangaList('trending');
+  }
+
+  static Future<List<Manga>> getLatestManga() async {
+    return _getMangaList('latest');
+  }
+
+  static Future<List<Manga>> getPopularManga() async {
+    return _getMangaList('popular');
+  }
+
+  static Future<List<Manga>> _getMangaList(String type) async {
+    try {
+      String orderQuery;
+      switch (type) {
+        case 'top':
+          orderQuery = 'order[rating]=desc';
+          break;
+        case 'trending':
+          orderQuery = 'order[followedCount]=desc';
+          break;
+        case 'latest':
+          orderQuery = 'order[latestUploadedChapter]=desc';
+          break;
+        case 'popular':
+          orderQuery = 'order[followedCount]=desc';
+          break;
+        default:
+          orderQuery = '';
+      }
+
+      final response = await _getClient().get(
+        Uri.parse('$baseUrl/manga?limit=20&includes[]=cover_art&$orderQuery'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return (data['data'] as List)
+            .map((mangaData) => Manga.fromJson(mangaData))
+            .toList();
+      }
+      throw Exception('Failed to load manga list');
+    } catch (e) {
+      print('Error fetching $type manga: $e');
+      throw Exception('Failed to load manga list');
+    }
+  }
 }

@@ -62,9 +62,9 @@ enum ReadingDirection {
 }
 
 enum BrightnessMode {
-  LIGHT,
-  DARK,
-  SYSTEM,
+  light,
+  dark,
+  system,
 }
 
 class Language {
