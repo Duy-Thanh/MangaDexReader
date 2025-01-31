@@ -61,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'MangaDex Reader',
+          'Search',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
