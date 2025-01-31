@@ -9,11 +9,13 @@ import 'providers/bookmark_provider.dart';
 import 'package:flutter/services.dart';
 import 'providers/theme_provider.dart';
 import 'services/navigation_service.dart';
+import 'services/image_cache_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ImageCacheService.initCache();
   SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,
     overlays: [SystemUiOverlay.top],

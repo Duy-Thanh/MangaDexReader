@@ -409,40 +409,38 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                                       maxHeight:
                                           MediaQuery.of(context).size.height,
                                     ),
-                                    child: ExtendedImage(
-                                      image: ImageCacheService.getCachedImage(
+                                    child: FutureBuilder<ImageProvider>(
+                                      future: ImageCacheService
+                                          .getCachedImageWithValidation(
                                         widget.chapter.id,
                                         pages[index],
+                                        MangaDexService.getImageEtag(
+                                                pages[index]) ??
+                                            DateTime.now().toString(),
                                       ),
-                                      fit: BoxFit.contain,
-                                      mode: ExtendedImageMode.gesture,
-                                      initGestureConfigHandler: (state) {
-                                        return GestureConfig(
-                                          minScale: 0.9,
-                                          animationMinScale: 0.7,
-                                          maxScale: 3.0,
-                                          animationMaxScale: 3.5,
-                                          speed: 1.0,
-                                          inertialSpeed: 100.0,
-                                          initialScale: 1.0,
-                                          inPageView: true,
-                                        );
-                                      },
-                                      loadStateChanged:
-                                          (ExtendedImageState state) {
-                                        switch (state.extendedImageLoadState) {
-                                          case LoadState.loading:
-                                            return const Center(
-                                              child:
-                                                  CircularProgressIndicator(),
-                                            );
-                                          case LoadState.completed:
-                                            return null; // Return null to display the image
-                                          case LoadState.failed:
-                                            return const Center(
-                                              child: Icon(Icons.error),
-                                            );
+                                      builder: (context, snapshot) {
+                                        if (snapshot.hasData) {
+                                          return ExtendedImage(
+                                            image: snapshot.data!,
+                                            fit: BoxFit.contain,
+                                            mode: ExtendedImageMode.gesture,
+                                            initGestureConfigHandler: (state) {
+                                              return GestureConfig(
+                                                minScale: 0.9,
+                                                animationMinScale: 0.7,
+                                                maxScale: 3.0,
+                                                animationMaxScale: 3.5,
+                                                speed: 1.0,
+                                                inertialSpeed: 100.0,
+                                                initialScale: 1.0,
+                                                inPageView: true,
+                                              );
+                                            },
+                                          );
                                         }
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
                                       },
                                     ),
                                   ),

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
 import '../screens/language_settings_screen.dart';
 import '../services/image_cache_service.dart';
+import 'package:extended_image/extended_image.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -319,6 +320,68 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+
+          // Add Cache section
+          _buildSection(
+            title: 'Cache',
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.storage),
+                  title: const Text('Image Cache'),
+                  subtitle: const CacheSizeDisplay(),
+                  trailing: TextButton(
+                    child: const Text('CLEAR'),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Clear Cache'),
+                          content: const Text(
+                            'Are you sure you want to clear the image cache? '
+                            'This will free up storage space but may increase data usage.',
+                          ),
+                          actions: [
+                            TextButton(
+                              child: const Text('CANCEL'),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            TextButton(
+                              child: const Text('CLEAR'),
+                              onPressed: () async {
+                                await ImageCacheService.clearCache();
+                                // Also clear the cache manager
+                                await ImageCacheService.cacheManager
+                                    .emptyCache();
+                                // Clear extended image cache
+                                clearMemoryImageCache();
+
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
+
+                                // Find and update the cache size display
+                                final cacheSizeState =
+                                    context.findAncestorStateOfType<
+                                        _CacheSizeDisplayState>();
+                                cacheSizeState?._updateCacheSize();
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Cache cleared'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -344,5 +407,37 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// Add this widget to handle cache size display
+class CacheSizeDisplay extends StatefulWidget {
+  const CacheSizeDisplay({super.key});
+
+  @override
+  State<CacheSizeDisplay> createState() => _CacheSizeDisplayState();
+}
+
+class _CacheSizeDisplayState extends State<CacheSizeDisplay> {
+  String _cacheSize = 'Calculating...';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateCacheSize();
+  }
+
+  Future<void> _updateCacheSize() async {
+    final size = await ImageCacheService.getCacheSize();
+    if (mounted) {
+      setState(() {
+        _cacheSize = size;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(_cacheSize);
   }
 }

@@ -9,6 +9,7 @@ import 'dart:async';
 class MangaDexService {
   static const String baseUrl = 'https://api.mangadex.org';
   static HttpClient? _httpClient;
+  static final Map<String, String> _imageEtags = {};
 
   // Common headers required by MangaDex API
   static final Map<String, String> _headers = {
@@ -118,8 +119,7 @@ class MangaDexService {
 
       final response = await _getClient().get(
         Uri.parse(
-          '$baseUrl/manga/$mangaId/feed?limit=500&order[chapter]=asc&$languagesQuery&includes[]=scanlation_group',
-        ),
+            '$baseUrl/manga/$mangaId/feed?limit=500&order[chapter]=asc&$languagesQuery&includes[]=scanlation_group'),
         headers: _headers,
       );
 
@@ -198,50 +198,32 @@ class MangaDexService {
 
   static Future<List<String>> getChapterPages(String chapterId) async {
     try {
-      final client = _getClient();
-      final response = await client.get(
+      final response = await http.get(
         Uri.parse('$baseUrl/at-home/server/$chapterId'),
         headers: _headers,
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final baseUrl = data['baseUrl'];
-        final chapter = data['chapter'];
-        final hash = chapter['hash'];
+        final hash = data['chapter']['hash'];
+        final images = List<String>.from(data['chapter']['data']);
 
-        // Try data-saver first, fall back to original quality if not available
-        final pages = List<String>.from(chapter['dataSaver']?.isNotEmpty == true
-            ? chapter['dataSaver']
-            : chapter['data']);
-
-        if (pages.isEmpty) {
-          throw Exception('No pages available for this chapter.');
-        }
-
-        return pages.map((page) {
-          final quality =
-              chapter['dataSaver']?.isNotEmpty == true ? 'data-saver' : 'data';
-          return '$baseUrl/$quality/$hash/$page';
+        return images.map((image) {
+          final url = 'https://uploads.mangadex.org/data/$hash/$image';
+          final etag = response.headers['etag'] ?? DateTime.now().toString();
+          // Store URL and ETag mapping
+          _imageEtags[url] = etag;
+          return url;
         }).toList();
-      } else {
-        final error = json.decode(response.body);
-        print('Failed to fetch pages: ${response.statusCode}');
-        print('Response body: ${response.body}');
-
-        if (response.statusCode == 404) {
-          throw Exception('Chapter not available or has been removed.');
-        }
-
-        throw Exception(
-            error['errors']?[0]?['detail'] ?? 'Failed to fetch chapter pages');
       }
+      throw Exception('Failed to load chapter pages');
     } catch (e) {
-      print('Error fetching pages: $e');
-      if (e is Exception) {
-        rethrow;
-      }
+      print('Error getting chapter pages: $e');
       throw Exception('Error loading chapter. Please try again later.');
     }
+  }
+
+  static String? getImageEtag(String url) {
+    return _imageEtags[url];
   }
 }
