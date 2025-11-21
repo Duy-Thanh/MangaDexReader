@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import '../models/manga.dart';
 import '../models/chapter.dart';
 import 'dart:async';
@@ -11,6 +12,11 @@ class MangaDexService {
   
   // Connection timeout settings
   static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _clientLifetime = Duration(seconds: 30);
+
+  // Singleton client with periodic refresh to prevent stale connections
+  static http.Client? _client;
+  static DateTime? _clientCreatedAt;
 
   // Common headers required by MangaDex API
   static final Map<String, String> _headers = {
@@ -18,17 +24,41 @@ class MangaDexService {
     'Accept': 'application/json',
   };
 
-  // Create a fresh client for each request to avoid connection reuse issues
-  static http.Client _createClient() {
-    return http.Client();
+  // Get or create client, refreshing if too old
+  static http.Client _getClient() {
+    final now = DateTime.now();
+    
+    // Refresh client if it doesn't exist or is older than 5 minutes
+    if (_client == null || 
+        _clientCreatedAt == null || 
+        now.difference(_clientCreatedAt!) > _clientLifetime) {
+      _client?.close();
+      
+      // Create IOClient with custom HttpClient that doesn't reuse connections
+      final httpClient = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 10)
+        ..idleTimeout = const Duration(seconds: 15);
+      
+      _client = IOClient(httpClient);
+      _clientCreatedAt = now;
+    }
+    
+    return _client!;
+  }
+
+  // Manually reset client if connection issues occur
+  static void resetClient() {
+    _client?.close();
+    _client = null;
+    _clientCreatedAt = null;
   }
 
   static Future<List<Manga>> searchManga(String query) async {
-    final client = _createClient();
+    
     try {
       final uri = Uri.parse('$baseUrl/manga?title=$query&limit=20&includes[]=cover_art');
       
-      final response = await client
+      final response = await _getClient()
           .get(uri, headers: _headers)
           .timeout(
         _timeout,
@@ -70,15 +100,13 @@ class MangaDexService {
     } catch (e) {
       print('Unexpected error: $e');
       throw Exception('An unexpected error occurred. Please try again.');
-    } finally {
-      client.close();
-    }
+    } 
   }
 
   static Future<Manga> getMangaDetails(String mangaId) async {
-    final client = _createClient();
+    
     try {
-      final response = await client.get(
+      final response = await _getClient().get(
         Uri.parse(
             '$baseUrl/manga/$mangaId?includes[]=cover_art&includes[]=author&includes[]=artist'),
         headers: _headers,
@@ -94,26 +122,25 @@ class MangaDexService {
       }
     } on http.ClientException catch (e) {
       print('Client Exception in getMangaDetails: $e');
+      resetClient();
       throw Exception('Connection error. Please try again.');
     } catch (e) {
       throw Exception('Error fetching manga details: $e');
-    } finally {
-      client.close();
-    }
+    } 
   }
 
   static Future<List<Chapter>> getChapters(
     String mangaId, {
     List<String>? translatedLanguages,
   }) async {
-    final client = _createClient();
+    
     try {
       final languagesQuery = translatedLanguages
               ?.map((l) => 'translatedLanguage[]=$l')
               .join('&') ??
           'translatedLanguage[]=en';
 
-      final response = await client.get(
+      final response = await _getClient().get(
         Uri.parse(
             '$baseUrl/manga/$mangaId/feed?limit=500&order[chapter]=asc&$languagesQuery&includes[]=scanlation_group'),
         headers: _headers,
@@ -171,19 +198,18 @@ class MangaDexService {
       );
     } on http.ClientException catch (e) {
       print('Client Exception in getChapters: $e');
+      resetClient();
       throw Exception('Connection error. Please try again.');
     } catch (e) {
       print('Error fetching chapters: $e');
       throw Exception(e.toString());
-    } finally {
-      client.close();
-    }
+    } 
   }
 
   static Future<Chapter?> getChapter(String chapterId) async {
-    final client = _createClient();
+    
     try {
-      final response = await client.get(
+      final response = await _getClient().get(
         Uri.parse('$baseUrl/chapter/$chapterId?includes[]=scanlation_group'),
         headers: _headers,
       ).timeout(_timeout, onTimeout: () {
@@ -198,15 +224,13 @@ class MangaDexService {
     } catch (e) {
       print('Error fetching chapter: $e');
       return null;
-    } finally {
-      client.close();
-    }
+    } 
   }
 
   static Future<List<String>> getChapterPages(String chapterId) async {
-    final client = _createClient();
+    
     try {
-      final response = await client.get(
+      final response = await _getClient().get(
         Uri.parse('$baseUrl/at-home/server/$chapterId'),
         headers: _headers,
       ).timeout(_timeout, onTimeout: () {
@@ -229,13 +253,12 @@ class MangaDexService {
       throw Exception('Failed to load chapter pages');
     } on http.ClientException catch (e) {
       print('Client Exception in getChapterPages: $e');
+      resetClient();
       throw Exception('Connection error. Please try again.');
     } catch (e) {
       print('Error getting chapter pages: $e');
       throw Exception('Error loading chapter. Please try again later.');
-    } finally {
-      client.close();
-    }
+    } 
   }
 
   static String? getImageEtag(String url) {
@@ -259,7 +282,6 @@ class MangaDexService {
   }
 
   static Future<List<Manga>> _getMangaList(String type) async {
-    final client = _createClient();
     try {
       String orderQuery;
       switch (type) {
@@ -279,7 +301,7 @@ class MangaDexService {
           orderQuery = '';
       }
 
-      final response = await client.get(
+      final response = await _getClient().get(
         Uri.parse('$baseUrl/manga?limit=20&includes[]=cover_art&$orderQuery'),
         headers: _headers,
       ).timeout(_timeout, onTimeout: () {
@@ -295,12 +317,13 @@ class MangaDexService {
       throw Exception('Failed to load manga list');
     } on http.ClientException catch (e) {
       print('Client Exception fetching $type manga: $e');
+      resetClient();
       throw Exception('Connection error. Please try again.');
     } catch (e) {
       print('Error fetching $type manga: $e');
       throw Exception('Failed to load manga list');
-    } finally {
-      client.close();
     }
   }
 }
+
+

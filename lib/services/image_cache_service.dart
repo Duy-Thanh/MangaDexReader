@@ -15,6 +15,7 @@ import 'dart:convert';
 class ImageCacheService {
   static final Map<String, List<String>> _chapterUrlCache = {};
   static final Map<String, ImageProvider> _imageCache = {};
+  static final Map<String, ExtendedNetworkImageProvider> _imageProviderCache = {};
   static const int _maxCachedChapters = 5;
   static const int _maxPreloadPagesNormal = 8;
   static const int _maxPreloadPagesDataSaving = 3;
@@ -148,15 +149,17 @@ class ImageCacheService {
       }
     }
 
-    // If no valid cache, download and cache
-    final imageProvider = ExtendedNetworkImageProvider(
-      url,
-      cache: true,
-      headers: {
-        'User-Agent': 'MangaDexReader/1.0.0',
-        'Referer': 'https://mangadex.org',
-      },
-    );
+    // Return singleton provider for this URL to ensure Flutter uses cached image
+    if (!_imageProviderCache.containsKey(url)) {
+      _imageProviderCache[url] = ExtendedNetworkImageProvider(
+        url,
+        cache: true,
+        headers: {
+          'User-Agent': 'MangaDexReader/1.0.0',
+          'Referer': 'https://mangadex.org',
+        },
+      );
+    }
 
     // Update cache metadata
     _cacheMetadata[cacheKey] = CacheMetadata(
@@ -166,7 +169,7 @@ class ImageCacheService {
     );
     await _saveCacheMetadata();
 
-    return imageProvider;
+    return _imageProviderCache[url]!;
   }
 
   // Preload next chapter more aggressively
