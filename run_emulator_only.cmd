@@ -7,14 +7,15 @@ taskkill /F /IM "adb.exe" /T > nul 2>&1
 :: Wait a moment to ensure processes are killed
 timeout /t 2 /nobreak > nul
 
-SET ANDROID_HOME=C:\Users\PC\AppData\Local\Android\Sdk
+@REM SET ANDROID_HOME=%USERPROFILE%\AppData\Local\Android\Sdk
+SET ANDROID_HOME=D:\Android\Sdk
+SET GRADLE_USER_HOME=D:\.gradle
 SET ANDROID_SDK_ROOT=%ANDROID_HOME%
 SET ANDROID_PLATFORM_TOOLS=%ANDROID_HOME%\platform-tools
 
 echo Starting Android Emulator with cold boot...
 :: The -no-snapshot-load flag forces a cold boot
-start "" "%ANDROID_SDK_ROOT%\emulator\emulator.exe" -avd Medium_Phone_API_35 -no-snapshot-load -no-snapshot-save
-
+start "" "%ANDROID_SDK_ROOT%\emulator\emulator.exe" -avd Medium_Phone -no-snapshot-load -no-snapshot -dns-server 8.8.8.8
 :: Wait for the emulator to fully boot
 echo Waiting for emulator to boot...
 :wait_for_boot

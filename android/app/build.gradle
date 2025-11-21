@@ -9,14 +9,18 @@ def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+} else {
+    // Set default empty values for CI/CD environments
+    keystoreProperties['keyAlias'] = System.getenv('KEY_ALIAS') ?: ''
+    keystoreProperties['keyPassword'] = System.getenv('KEY_PASSWORD') ?: ''
+    keystoreProperties['storeFile'] = System.getenv('KEYSTORE_FILE') ?: 'rel.jks'
+    keystoreProperties['storePassword'] = System.getenv('STORE_PASSWORD') ?: ''
 }
 
 android {
     namespace "com.nekkochan.mangareader"
-    compileSdkVersion 35
-    ndkVersion = flutter.ndkVersion
-
-    ndkVersion "25.1.8937393"
+    compileSdkVersion 36
+    ndkVersion flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -32,24 +36,34 @@ android {
         applicationId "com.nekkochan.mangareader"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdkVersion 21
-        targetSdkVersion 33
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 36
         versionCode 1
         versionName "1.0"
     }
 
     signingConfigs {
         release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
+            if (keystoreProperties['keyAlias']) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword keystoreProperties['storePassword']
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            // Only apply signing config if keystore properties are available
+            if (keystoreProperties['keyAlias']) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            shrinkResources false
+        }
+        debug {
+            minifyEnabled false
         }
     }
 }
