@@ -17,7 +17,6 @@ dependencies:
   provider: ^6.1.5+1
   url_launcher: ^6.3.2
   cupertino_icons: ^1.0.8
-  data_saver: ^0.4.0
   extended_image: ^10.0.1
   flutter_cache_manager: ^3.4.1
   dio: ^5.9.0

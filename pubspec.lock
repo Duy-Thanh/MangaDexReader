@@ -81,14 +81,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.8"
-  data_saver:
-    dependency: "direct main"
-    description:
-      name: data_saver
-      sha256: "5e1634495e52c163ba02e3840a7ace20f292de418c3cb059b9aef35505edafcb"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.0"
   dbus:
     dependency: transitive
     description:

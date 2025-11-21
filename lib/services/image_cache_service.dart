@@ -4,14 +4,10 @@ import '../services/navigation_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:data_saver/data_saver.dart';
-import 'dart:io' show Platform;
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../services/mangadex_service.dart';
-import 'package:dio/dio.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -22,7 +18,6 @@ class ImageCacheService {
   static const int _maxCachedChapters = 5;
   static const int _maxPreloadPagesNormal = 8;
   static const int _maxPreloadPagesDataSaving = 3;
-  static final _dataSaver = DataSaver();
 
   static final cacheManager = DefaultCacheManager();
 
@@ -63,22 +58,23 @@ class ImageCacheService {
     }
   }
 
-  // Check system data saving settings
-  static Future<bool> isSystemDataSavingEnabled() async {
-    final mode = await _dataSaver.checkMode();
-    return mode == DataSaverMode.enabled || mode == DataSaverMode.whitelisted;
+  // Check if on mobile data connection
+  static Future<bool> isOnMobileData() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    return connectivityResult.contains(ConnectivityResult.mobile);
   }
 
-  // Check both system and app data saving settings
+  // Check both connectivity and app data saving settings
   static Future<bool> shouldLimitDataUsage(BuildContext context) async {
-    // First check system data saving settings
-    if (await isSystemDataSavingEnabled()) {
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    
+    // If app data saving mode is enabled, always limit
+    if (settings.dataSavingMode) {
       return true;
     }
-
-    // If system data saving is off, check app settings
-    final settings = Provider.of<SettingsProvider>(context, listen: false);
-    return settings.dataSavingMode;
+    
+    // Otherwise, limit only when on mobile data
+    return await isOnMobileData();
   }
 
   // Preload with better error handling and parallel loading
@@ -157,10 +153,8 @@ class ImageCacheService {
       url,
       cache: true,
       headers: {
-        'User-Agent': 'MangaDexReader/1.0.0 (Flutter App)',
-        'Accept': 'image/*',
-        'Referer': 'https://mangadex.org/',
-        'If-None-Match': _cacheMetadata[cacheKey]?.etag ?? '', // Add ETag check
+        'User-Agent': 'MangaDexReader/1.0.0',
+        'Referer': 'https://mangadex.org',
       },
     );
 
@@ -220,16 +214,7 @@ class ImageCacheService {
     }
   }
 
-  // Check if on mobile data
-  static Future<bool> isOnMobileData() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.mobile) {
-      // Check data saver mode when on mobile
-      final mode = await _dataSaver.checkMode();
-      return mode == DataSaverMode.enabled;
-    }
-    return false;
-  }
+
 
   // Clear cache when low on memory
   static Future<void> handleLowMemory() async {

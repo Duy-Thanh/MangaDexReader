@@ -1,57 +1,37 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 import '../models/manga.dart';
 import '../models/chapter.dart';
 import 'dart:async';
 
 class MangaDexService {
   static const String baseUrl = 'https://api.mangadex.org';
-  static HttpClient? _httpClient;
   static final Map<String, String> _imageEtags = {};
+  
+  // Connection timeout settings
+  static const Duration _timeout = Duration(seconds: 30);
 
   // Common headers required by MangaDex API
   static final Map<String, String> _headers = {
-    'User-Agent':
-        'MangaDexReader/1.0.0 (Open Source Flutter App - github.com/yourusername/mangareader)',
+    'User-Agent': 'MangaDexReader/1.0.0',
     'Accept': 'application/json',
-    'Content-Type': 'application/json',
   };
 
-  static http.Client _getClient() {
-    if (_httpClient == null) {
-      _httpClient = HttpClient();
-      _httpClient!.findProxy = (uri) {
-        // Add your proxy configuration here
-        // Example for using system proxy:
-        return HttpClient.findProxyFromEnvironment(uri);
-
-        // Or use a specific proxy:
-        // return 'PROXY proxy.yourvpn.com:8080';
-
-        // Or for SOCKS proxy:
-        // return 'SOCKS5 proxy.yourvpn.com:1080';
-      };
-
-      // Optional: Disable certificate verification if needed
-      _httpClient!.badCertificateCallback =
-          ((X509Certificate cert, String host, int port) => true);
-    }
-
-    return IOClient(_httpClient!);
+  // Create a fresh client for each request to avoid connection reuse issues
+  static http.Client _createClient() {
+    return http.Client();
   }
 
   static Future<List<Manga>> searchManga(String query) async {
+    final client = _createClient();
     try {
-      final client = _getClient();
+      final uri = Uri.parse('$baseUrl/manga?title=$query&limit=20&includes[]=cover_art');
+      
       final response = await client
-          .get(
-        Uri.parse('$baseUrl/manga?title=$query&limit=20&includes[]=cover_art'),
-        headers: _headers,
-      )
+          .get(uri, headers: _headers)
           .timeout(
-        const Duration(seconds: 10),
+        _timeout,
         onTimeout: () {
           throw TimeoutException(
               'Connection timed out. Please check your internet connection.');
@@ -78,23 +58,33 @@ class MangaDexService {
     } on HttpException catch (e) {
       print('HTTP Exception: $e');
       throw Exception('Unable to reach MangaDex. Please try again later.');
+    } on http.ClientException catch (e) {
+      print('Client Exception: $e');
+      throw Exception('Connection error. Please try again.');
     } on FormatException catch (e) {
       print('Format Exception: $e');
       throw Exception('Invalid response from server. Please try again later.');
+    } on TimeoutException catch (e) {
+      print('Timeout Exception: $e');
+      throw Exception('Request timed out. Please check your connection.');
     } catch (e) {
       print('Unexpected error: $e');
       throw Exception('An unexpected error occurred. Please try again.');
+    } finally {
+      client.close();
     }
   }
 
   static Future<Manga> getMangaDetails(String mangaId) async {
+    final client = _createClient();
     try {
-      final client = _getClient();
       final response = await client.get(
         Uri.parse(
             '$baseUrl/manga/$mangaId?includes[]=cover_art&includes[]=author&includes[]=artist'),
         headers: _headers,
-      );
+      ).timeout(_timeout, onTimeout: () {
+        throw TimeoutException('Request timed out');
+      });
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -102,8 +92,13 @@ class MangaDexService {
       } else {
         throw Exception('Failed to fetch manga details');
       }
+    } on http.ClientException catch (e) {
+      print('Client Exception in getMangaDetails: $e');
+      throw Exception('Connection error. Please try again.');
     } catch (e) {
       throw Exception('Error fetching manga details: $e');
+    } finally {
+      client.close();
     }
   }
 
@@ -111,17 +106,20 @@ class MangaDexService {
     String mangaId, {
     List<String>? translatedLanguages,
   }) async {
+    final client = _createClient();
     try {
       final languagesQuery = translatedLanguages
               ?.map((l) => 'translatedLanguage[]=$l')
               .join('&') ??
           'translatedLanguage[]=en';
 
-      final response = await _getClient().get(
+      final response = await client.get(
         Uri.parse(
             '$baseUrl/manga/$mangaId/feed?limit=500&order[chapter]=asc&$languagesQuery&includes[]=scanlation_group'),
         headers: _headers,
-      );
+      ).timeout(_timeout, onTimeout: () {
+        throw TimeoutException('Request timed out');
+      });
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -171,19 +169,26 @@ class MangaDexService {
       throw Exception(
         'Unable to connect to MangaDex. Please check your internet connection or try using a VPN.',
       );
+    } on http.ClientException catch (e) {
+      print('Client Exception in getChapters: $e');
+      throw Exception('Connection error. Please try again.');
     } catch (e) {
       print('Error fetching chapters: $e');
       throw Exception(e.toString());
+    } finally {
+      client.close();
     }
   }
 
   static Future<Chapter?> getChapter(String chapterId) async {
+    final client = _createClient();
     try {
-      final client = _getClient();
       final response = await client.get(
         Uri.parse('$baseUrl/chapter/$chapterId?includes[]=scanlation_group'),
         headers: _headers,
-      );
+      ).timeout(_timeout, onTimeout: () {
+        throw TimeoutException('Request timed out');
+      });
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -193,15 +198,20 @@ class MangaDexService {
     } catch (e) {
       print('Error fetching chapter: $e');
       return null;
+    } finally {
+      client.close();
     }
   }
 
   static Future<List<String>> getChapterPages(String chapterId) async {
+    final client = _createClient();
     try {
-      final response = await http.get(
+      final response = await client.get(
         Uri.parse('$baseUrl/at-home/server/$chapterId'),
         headers: _headers,
-      );
+      ).timeout(_timeout, onTimeout: () {
+        throw TimeoutException('Request timed out');
+      });
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -217,9 +227,14 @@ class MangaDexService {
         }).toList();
       }
       throw Exception('Failed to load chapter pages');
+    } on http.ClientException catch (e) {
+      print('Client Exception in getChapterPages: $e');
+      throw Exception('Connection error. Please try again.');
     } catch (e) {
       print('Error getting chapter pages: $e');
       throw Exception('Error loading chapter. Please try again later.');
+    } finally {
+      client.close();
     }
   }
 
@@ -244,6 +259,7 @@ class MangaDexService {
   }
 
   static Future<List<Manga>> _getMangaList(String type) async {
+    final client = _createClient();
     try {
       String orderQuery;
       switch (type) {
@@ -263,10 +279,12 @@ class MangaDexService {
           orderQuery = '';
       }
 
-      final response = await _getClient().get(
+      final response = await client.get(
         Uri.parse('$baseUrl/manga?limit=20&includes[]=cover_art&$orderQuery'),
         headers: _headers,
-      );
+      ).timeout(_timeout, onTimeout: () {
+        throw TimeoutException('Request timed out');
+      });
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -275,9 +293,14 @@ class MangaDexService {
             .toList();
       }
       throw Exception('Failed to load manga list');
+    } on http.ClientException catch (e) {
+      print('Client Exception fetching $type manga: $e');
+      throw Exception('Connection error. Please try again.');
     } catch (e) {
       print('Error fetching $type manga: $e');
       throw Exception('Failed to load manga list');
+    } finally {
+      client.close();
     }
   }
 }

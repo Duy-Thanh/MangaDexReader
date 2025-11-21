@@ -4,7 +4,6 @@ import '../providers/settings_provider.dart';
 import '../models/settings.dart';
 import '../utils/network_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:io' show Platform;
 import '../screens/language_settings_screen.dart';
 import '../services/image_cache_service.dart';
 import 'package:extended_image/extended_image.dart';
@@ -296,15 +295,13 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 FutureBuilder<bool>(
-                  future: ImageCacheService.isSystemDataSavingEnabled(),
+                  future: ImageCacheService.isOnMobileData(),
                   builder: (context, snapshot) {
                     if (snapshot.hasData && snapshot.data!) {
                       return ListTile(
-                        leading: const Icon(Icons.data_saver_on),
-                        title: Text(Platform.isIOS
-                            ? 'Low Data Mode Enabled'
-                            : 'Data Saver Enabled'),
-                        subtitle: const Text('System data saving is active'),
+                        leading: const Icon(Icons.signal_cellular_alt),
+                        title: const Text('Mobile Data Connection'),
+                        subtitle: const Text('Currently on mobile data - data usage will be limited'),
                       );
                     }
                     return const SizedBox.shrink();
@@ -314,7 +311,7 @@ class SettingsScreen extends StatelessWidget {
                   builder: (context, settings, _) => SwitchListTile(
                     title: const Text('App Data Saving Mode'),
                     subtitle: const Text(
-                        'Reduce data usage by limiting preloading when system data saving is off'),
+                        'Reduce data usage by limiting image preloading'),
                     value: settings.dataSavingMode,
                     onChanged: (value) {
                       settings.updateDataSavingMode(value);

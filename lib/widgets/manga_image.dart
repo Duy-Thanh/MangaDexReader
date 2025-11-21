@@ -24,9 +24,8 @@ class MangaImage extends StatelessWidget {
       width: width,
       height: height,
       headers: {
-        'User-Agent': 'MangaDexReader/1.0.0 (Flutter App)',
-        'Accept': 'image/*',
-        'Referer': 'https://mangadex.org/',
+        'User-Agent': 'MangaDexReader/1.0.0',
+        'Referer': 'https://mangadex.org',
       },
       errorBuilder: errorBuilder ??
           (context, error, stackTrace) => const Center(
