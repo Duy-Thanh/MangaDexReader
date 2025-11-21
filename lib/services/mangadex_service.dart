@@ -14,6 +14,11 @@ class MangaDexService {
   static const Duration _timeout = Duration(seconds: 30);
   static const Duration _clientLifetime = Duration(seconds: 30);
 
+  // Rate limiting: MangaDex allows 5 requests per second per IP
+  static final List<DateTime> _requestTimestamps = [];
+  static const int _maxRequestsPerSecond = 5;
+  static const Duration _rateLimitWindow = Duration(seconds: 1);
+
   // Singleton client with periodic refresh to prevent stale connections
   static http.Client? _client;
   static DateTime? _clientCreatedAt;
@@ -53,7 +58,36 @@ class MangaDexService {
     _clientCreatedAt = null;
   }
 
+  // Rate limiting: Wait if necessary to respect API limits
+  static Future<void> _waitForRateLimit() async {
+    final now = DateTime.now();
+    
+    // Remove timestamps older than the rate limit window
+    _requestTimestamps.removeWhere(
+      (timestamp) => now.difference(timestamp) > _rateLimitWindow
+    );
+    
+    // If we've hit the limit, wait until the oldest request expires
+    if (_requestTimestamps.length >= _maxRequestsPerSecond) {
+      final oldestRequest = _requestTimestamps.first;
+      final waitTime = _rateLimitWindow - now.difference(oldestRequest);
+      
+      if (waitTime.inMilliseconds > 0) {
+        await Future.delayed(waitTime + const Duration(milliseconds: 100));
+      }
+      
+      // Clean up again after waiting
+      _requestTimestamps.removeWhere(
+        (timestamp) => DateTime.now().difference(timestamp) > _rateLimitWindow
+      );
+    }
+    
+    // Record this request
+    _requestTimestamps.add(DateTime.now());
+  }
+
   static Future<List<Manga>> searchManga(String query) async {
+    await _waitForRateLimit();
     
     try {
       final uri = Uri.parse('$baseUrl/manga?title=$query&limit=20&includes[]=cover_art');
@@ -104,6 +138,7 @@ class MangaDexService {
   }
 
   static Future<Manga> getMangaDetails(String mangaId) async {
+    await _waitForRateLimit();
     
     try {
       final response = await _getClient().get(
@@ -133,6 +168,7 @@ class MangaDexService {
     String mangaId, {
     List<String>? translatedLanguages,
   }) async {
+    await _waitForRateLimit();
     
     try {
       final languagesQuery = translatedLanguages
@@ -228,6 +264,7 @@ class MangaDexService {
   }
 
   static Future<List<String>> getChapterPages(String chapterId) async {
+    await _waitForRateLimit();
     
     try {
       final response = await _getClient().get(
@@ -282,6 +319,8 @@ class MangaDexService {
   }
 
   static Future<List<Manga>> _getMangaList(String type) async {
+    await _waitForRateLimit();
+    
     try {
       String orderQuery;
       switch (type) {

@@ -13,26 +13,26 @@ import '../widgets/loading_animation.dart';
 import 'dart:io' show Platform;
 
 final Map<String, Color> tagColors = {
-  'Action': Colors.red.shade400,
-  'Adventure': Colors.orange.shade400,
-  'Comedy': Colors.amber.shade400,
-  'Drama': Colors.purple.shade400,
-  'Fantasy': Colors.blue.shade400,
-  'Horror': Colors.grey.shade800,
-  'Mystery': Colors.indigo.shade400,
-  'Romance': Colors.pink.shade400,
-  'Sci-Fi': Colors.cyan.shade400,
-  'Slice of Life': Colors.green.shade400,
-  'Sports': Colors.lightBlue.shade400,
-  'Supernatural': Colors.deepPurple.shade400,
-  'Thriller': Colors.brown.shade400,
-  'Crime': Colors.red.shade700,
-  'Monsters': Colors.green.shade700,
-  'Gore': Colors.red.shade900,
-  'Award Winning': Colors.amber.shade700,
-  'Animals': Colors.brown.shade300,
-  'School Life': Colors.teal.shade400,
-  'Isekai': Colors.deepPurple.shade300,
+  'Action': const Color(0xFFFF5252),
+  'Adventure': const Color(0xFFFF9800),
+  'Comedy': const Color(0xFFFFC107),
+  'Drama': const Color(0xFFAB47BC),
+  'Fantasy': const Color(0xFF29B6F6),
+  'Horror': const Color(0xFF9C27B0),
+  'Mystery': const Color(0xFF5C6BC0),
+  'Romance': const Color(0xFFE91E63),
+  'Sci-Fi': const Color(0xFF26A69A),
+  'Slice of Life': const Color(0xFF66BB6A),
+  'Sports': const Color(0xFF42A5F5),
+  'Supernatural': const Color(0xFF7E57C2),
+  'Thriller': const Color(0xFF78909C),
+  'Crime': const Color(0xFFEF5350),
+  'Monsters': const Color(0xFF66BB6A),
+  'Gore': const Color(0xFFEF5350),
+  'Award Winning': const Color(0xFFFFC107),
+  'Animals': const Color(0xFFFF7043),
+  'School Life': const Color(0xFF26C6DA),
+  'Isekai': const Color(0xFFAB47BC),
 };
 
 class MangaDetailsScreen extends StatefulWidget {
@@ -63,10 +63,10 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 400,
+            expandedHeight: 450,
             pinned: true,
             stretch: true,
-            backgroundColor: Theme.of(context).primaryColor,
+            backgroundColor: Colors.black,
             titleSpacing: 0,
             flexibleSpace: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
@@ -261,23 +261,23 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                             runSpacing: 8,
                             children: widget.manga.tags.map((tag) {
                               final color = tagColors[tag] ??
-                                  Theme.of(context).primaryColor;
+                                  const Color(0xFF42A5F5);
                               return Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: color.withOpacity(0.2),
+                                  color: color,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: color, width: 1),
+                                  border: Border.all(color: color.withOpacity(0.5), width: 1.5),
                                 ),
                                 child: Text(
                                   tag,
-                                  style: TextStyle(
-                                    color: color,
+                                  style: const TextStyle(
+                                    color: Colors.white,
                                     fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               );
